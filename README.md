@@ -8,7 +8,7 @@ This is a personal system I built for myself, shared as-is. Built as a pi config
 
 ## What's in it
 
-- `skills/teach/` — the philosophy and the process
+- `skills/teach/` — the teaching philosophy and process, with expert traces, reconstructed learning routes, simulated failure paths, pattern cards, learner error mapping, fading hints, and teacher-guided SM-2 reviews in a linked learner note
 - `skills/visualize/` — adds a correct, minimal diagram to a lesson when an idea is clearer as a picture
 - `extensions/ask-user-question/` — the agent asks you questions through a UI popup
 - `extensions/quiz/` — graded questions with instant feedback (✓/✗, correct answer, explanation)
