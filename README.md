@@ -8,13 +8,13 @@ This is a personal system I built for myself, shared as-is. Built as a pi config
 
 ## What's in it
 
-- `skills/teach/` — competitive-programming coaching with a six-stage per-problem reasoning dataset, multi-path solver simulations, failure-and-recovery graphs, second-nature checks, pattern cards, timed/untimed tracking, problem indexes, fading hints, and teacher-guided SM-2 reviews in a linked learner note; includes a reusable problem-analysis template
+- `skills/teach/` — competitive-programming coaching with a six-stage per-problem reasoning dataset, multi-path solver simulations, failure-and-recovery graphs, second-nature checks, pattern cards, transfer tracking, contest reviews, adaptive problem queues, pacing, and teacher-guided SM-2 reviews; includes problem-analysis, dashboard, and card templates
 - `skills/visualize/` — adds a correct, minimal diagram to a lesson when an idea is clearer as a picture
 - `extensions/ask-user-question/` — the agent asks you questions through a UI popup
 - `extensions/quiz/` — graded questions with instant feedback (✓/✗, correct answer, explanation)
 - `extensions/md-log/` — link a markdown file to the session
 - `extensions/visual-tools/` — tools for visualization subagents
-- `agents/` — `researcher`, `svg-maker`, `mermaid-maker`: the subagents the system delegates to
+- `agents/` — `cp-problem-analyst`, `researcher`, `svg-maker`, `mermaid-maker`: the subagents the system delegates to
 
 ## Install
 
@@ -34,6 +34,12 @@ Then open pi in that directory. (Or copy the pieces you want into your existing 
 
 ## Notes
 
-You can run the system without subagents. The main session does the teaching. You just lose the researcher (truth verification) and the generated visuals.
+You can run the system without subagents. The main session does the teaching and drafts problem analyses. You just lose the `cp-problem-analyst` and researcher helpers (sourced analysis and truth verification) and the generated visuals.
 
 The teaching skill is written for one learner (me). Edit the skill to fit how you learn best.
+
+## Open the CP workspace
+
+Open [`cp-workspace.html`](cp-workspace.html) in a browser. It is one self-contained page: enter the problem and your attempt on the left; build the concept map, solver routes, failure/recovery analysis, pattern cards, and transfer notes in the scrollable right pane. Drafts autosave in that browser. Use **Export Markdown** to keep a portable copy, or **Copy analysis prompt** to use an external AI session; the page itself has no model/API connection.
+
+The `cp-problem-analyst` Pi agent can draft sourced, provenance-labeled analyses when the subagent extension is available. Verify its solution claims before using them. The repo still does not include a large vetted problem library or live code-editor monitoring. The Markdown dashboard, analysis, and card templates are optional export/reference formats, not another required interface.

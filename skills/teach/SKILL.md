@@ -3,13 +3,15 @@ name: teach
 description: Teach competitive programming so algorithmic ideas, problem patterns, proofs, and implementation habits stick. Use for competitive programming study, problem-solving practice, editorial review, debugging, and contest preparation.
 ---
 
-# Teaching
+# Competitive-programming coaching
 
-Two principles. They are not tips — they are how you teach him, every time. No other teaching methods come close. Apply them to any explanation, from a one-liner to a deep dive.
+This skill is for competitive-programming study. Its primary workflow is the CP problem analysis and attempt loop below: build a hidden reasoning and failure graph, let him attempt the problem without pattern cues, surface a trigger only when he stalls or reaches a known failure branch, then review reusable moves with spaced retrieval. The broader teaching principles in this skill support explanations and debriefs; they must not displace the unaided attempt, reveal the target pattern early, or turn a problem session into a general lesson.
+
+Two principles guide explanations after the learner's current reasoning has been elicited. They are not a substitute for the CP attempt loop. Apply them to explanations, from a one-liner to a deep dive.
 
 The goal is never "he can recite the fact." The goal is **understanding**: the fact is derivable from foundations he already accepts, connected into his mental model, and therefore self-preserving. Memorized facts rot. Understood facts don't.
 
-## The philosophy (why this works — internalize it)
+## Explanation principles (why this works — internalize it)
 
 Two brains can hold the same propositions and look identical from the outside (same answers to the same questions). But one holds a pile of **disconnected lone facts** (A). The other holds a few **core truths** from which all those facts are derivable (B), so to it the facts are obviously connected. That connection *is* understanding.
 
@@ -64,9 +66,11 @@ Choose per topic and per his apparent energy:
 
 When unsure, lean Socratic for things he can clearly reason about; otherwise narrate.
 
-## The process: probe → plan → teach
+In a CP problem attempt, either style must preserve retrieval: first ask him to recall the relevant check or reasoning move. Use exposition only after a bounded attempt, reveal one motivated step at a time, and keep the full solution hidden.
 
-The two principles are *how* you teach. This is *when* — the shape of a teaching session. Run all three phases in order, every time; scale each phase's *size* to the topic, never its *shape*.
+## Standalone concept lessons: probe → plan → teach
+
+Use these phases for a CP concept lesson or a requested explanation. For problem-solving practice, the problem attempt is the main probe and the CP track below takes priority: do not pre-quiz the target pattern, reveal a dependency map, or pause for plan approval before the learner has tried the problem. Reuse known learner history; probe only relevant gaps that remain unknown. After the attempt, use a concise plan or dependency map when it helps the debrief.
 
 **Accuracy is non-negotiable — verify, don't wing it from memory.** He has to be able to trust the teacher completely; one confidently-delivered hallucination poisons that. Working from memory alone is where LLMs invent things, so: **the moment you are even slightly unsure of any fact, name, date, formula, definition, or claim, stop and confirm it with a quick `researcher` subagent before you say it.** Pausing to verify is always acceptable — accuracy beats flow, every time. And if a check changes or corrects what you were about to teach, say so plainly rather than quietly papering over it. A wrong unconditional truth or a wrong "discovered" step doesn't just mislead — it corrupts every node built on top of it.
 
@@ -81,7 +85,7 @@ The tool already tells you to keep options even. That rule isn't enough on its o
 
 If, reading the finished set cold, you can still tell which is right without knowing the material, you skipped step 1 or 2 — regenerate, don't patch.
 
-### Phase 1 — Probe (never skip this)
+### Phase 1 — Probe (for concept lessons)
 
 You can't teach into his zone of proximal development without knowing where its edges are, and you can't aim the teaching without knowing what he's actually reaching for. Two separate unknowns, two separate tools — keep the boundary clean:
 
@@ -96,11 +100,11 @@ You can't teach into his zone of proximal development without knowing where its 
 
 Do not advance to Phase 2 until, for each goal-relevant strand, you can state concretely both what he has and where it ends. This is how nuance is handled: many small graded questions, each adapted to the last answer — not one big caveated one. Every `quiz` carries the correct answer, so you learn *exactly where* he goes wrong, not just that he did.
 
-**1b. His learning goal — use `ask_user_question`.** Find out what he actually wants taught. With a subject he doesn't know yet, the goal is often hard for him to articulate — "I want to understand LLMs" or "how the internet works" can mean ten different things, and which one it is completely changes what you teach. Interrogate the vision until it's concrete. This has no right answer, so it's `ask_user_question`, never `quiz`.
+**1b. His learning goal — use `ask_user_question` only if needed.** Identify the CP goal if the request does not already make it clear: solve a problem, understand a pattern, review an editorial, debug a submission, or prepare for contests. If he has named the problem or goal, do not ask him to restate it. This has no right answer, so use `ask_user_question`, never `quiz`.
 
 ### Phase 2 — Plan (think hard here)
 
-This is the highest-leverage step; don't rush it. With his level and his goal now in hand, stop and genuinely reason out the best way to teach *this thing* to *this person*. Re-read the philosophy above and plan against it:
+This is the highest-leverage step; don't rush it. With his level and his goal now in hand, reason out the best way to teach *this thing* to *this person*. Re-read the explanation principles above and plan against them:
 
 - **Scope the field first with a `researcher` subagent.** Before planning the graph, fire a quick researcher to map the topic — its core concepts, the real first principles, standard framings, common gotchas. This both refreshes your grip on the subject and surfaces the genuine unconditional truths so you don't plan around a half-remembered version. Cheap, and it makes the whole plan more accurate.
 - What are the unconditional truths this rests on? Is there a clean atomic unit ("ALL X is done through {____}")?
@@ -110,14 +114,14 @@ This is the highest-leverage step; don't rush it. With his level and his goal no
 
 A good plan is what makes the teaching feel inevitable instead of arbitrary.
 
-**Then present the plan in chat — always, before any teaching.** Two parts:
+**For a standalone concept lesson, present the plan before teaching.** For a CP problem attempt, keep the plan internal until the learner has tried the problem; then show a compact map during the debrief if useful. Do not make plan approval a gate for continuing an already clear learning goal. A standalone lesson plan has two parts:
 
 1. **The approach, in prose.** What we'll cover, in what order, and why this way — given where his edge sits (Phase 1a) and what he's reaching for (Phase 1b). A few freeform sentences.
 2. **The dependency map.** The plan's backbone as a DAG: unconditional truths at the roots, each derived node hanging off what it depends on, his goal as the sink. Draw it as a small ```mermaid``` graph (Obsidian renders mermaid natively in the log). This map *is* the teaching order — Phase 3 builds it node by node. Keep it small: few nodes, short labels — a map, not the territory.
 
 **Stress-test the roots before presenting.** For every node you're treating as foundational, ask: is this genuinely an unconditional truth *for him*, or a disguised theorem that itself derives from something simpler he'd accept at face value? If it derives, push it down and extend the map — never found the lesson on a mid-level fact. A wrong root corrupts everything hung off it, and roots are far easier to audit in a drawn map than mid-flow.
 
-**Then stop and wait for his go-ahead.** The presented plan is his checkpoint: a wrong root or wrong scope is cheap to fix now, expensive mid-lesson. Do not begin Phase 3 until he okays the plan.
+For a standalone lesson, invite a correction if the scope or sequence seems wrong, then continue when the goal is clear. Do not wait for approval when the user's request already establishes the scope.
 
 ### Phase 3 — Teach (the loop)
 
@@ -138,7 +142,7 @@ If you catch yourself asserting a fact he'd have to take on faith — foundation
 
 ## Competitive-programming track — build pattern recognition and transfer
 
-Use this track for competitive-programming study. It supplements the probe → plan → teach process above. The aim is to help him recognize and apply algorithmic patterns across competitive-programming problems, not to promise that one set of examples will make him an expert.
+This is the primary workflow for competitive-programming study. It adapts the explanation principles and standalone lesson process above to preserve cold problem attempts, retrieval, and transfer. The aim is to help him recognize and apply algorithmic patterns across competitive-programming problems, not to promise that one set of examples will make him an expert.
 
 Keep two related graphs distinct:
 
@@ -149,7 +153,11 @@ Keep two related graphs distinct:
 
 For each problem, first construct a sound competitive-programming solution trace: how the solver interprets the statement and constraints, estimates the needed complexity, chooses an algorithm or data structure, proves it correct, and turns it into code. Capture alternatives they consider and reject, implementation decisions, and tests that would expose a bug. Use several problems or solvers where possible. A polished editorial written after solving can omit tacit steps, so mark inferred explanations as hypotheses until examples support them.
 
-For every problem studied, build a per-problem reasoning record using [`templates/cp-problem-analysis.md`](templates/cp-problem-analysis.md) and save the filled copy in the learner's existing study note. The record is the source dataset for later teaching and card creation. Populate it before teaching when sources permit; update it after seeing the learner's actual work. Never put learner-specific records into this shared skill directory.
+For every problem studied, build a per-problem reasoning record using [`templates/cp-problem-analysis.md`](templates/cp-problem-analysis.md) and enter it in the workspace's analysis fields. The record is the source dataset for later teaching and card creation. Populate it before teaching when sources permit; update it after seeing the learner's actual work. Export Markdown when a durable copy is wanted. Never put learner-specific records into this shared skill directory.
+
+Use [`../../cp-workspace.html`](../../cp-workspace.html) as the single-page workspace: the learner keeps the problem and attempt on the left, while the coach-side analysis, failure map, pattern cards, and transfer evidence live in the independently scrollable right pane. The page autosaves in the current browser and exports Markdown. Its “Copy analysis prompt” action prepares a prompt for an external AI session; it does not call a model or claim to generate an analysis itself. The dashboard and card templates remain available as export formats and reference schemas, not as a second required UI.
+
+If the `cp-problem-analyst` agent is installed in Pi, ask it to draft a problem analysis from the public statement and source material; otherwise follow the same pipeline in the main session. The agent drafts, it does not certify correctness: verify constraints, solution claims, and sources before entering the analysis. Keep actual learner errors separate from simulated branches. Do not put learner-specific records in this shared repository; use the page's browser storage and export a Markdown copy for durable backup.
 
 Use the template as a six-stage pipeline for each problem:
 
@@ -204,6 +212,19 @@ Link observed learner mistakes to the earlier problem and the correction they le
 
 The tutor can react only to reasoning, code, or judge feedback the learner shares or an available tool exposes. Ask for checkpoints when he is solving offline; never claim to watch unseen work. Keep the full graph hidden during the attempt. Use it to recognize a branch as soon as it appears in shared work, then surface only that branch's trigger. If a known mistake is now well learned, test whether he catches it instead of teaching it again.
 
+Agree on a reasonable effort window and check-in before a long attempt. If the learner is offline, ask for a compact checkpoint at a natural pause: current hypothesis, why it seems plausible, simplest baseline and cost, invariant or state, and the smallest test tried. Do not interrupt steady progress. If he is frustrated or asks to stop, offer a smaller hint, a short break, or pausing and recording the next step. Encourage persistence without coercion; acknowledge specific useful actions such as finding a counterexample or catching a bug, and focus on one high-value branch at a time.
+
+### Calibrate difficulty and sequence problems
+
+Use the learner's recent transfer evidence and problem queue in the workspace, not a rating number alone. Platform ratings are not directly comparable. Before choosing the next problem, name one target pattern or failure-recovery move and one observable success criterion. A useful short sequence is: an unseen application problem, a retrieval problem after a delay, then a near-miss or boundary problem that looks similar but violates a key condition. Interleave topics after the learner can retrieve the move in its original context.
+
+- If he recognizes the pattern, explains why it applies, proves the key claim, and solves independently on distinct problems, reduce cue strength or raise difficulty gradually.
+- If he needs a pattern cue or cannot explain the applicability condition, keep the difficulty similar and test the same move on a different surface form.
+- If the main issue is a prerequisite, proof, complexity, or implementation gap, choose a problem that isolates that gap instead of lowering every dimension at once.
+- Treat these as coaching heuristics, not mastery cutoffs. Record the number and type of attempts; one success or failure should not set the ladder.
+
+Keep a small queue in the workspace with an intended retrieval, a contrast/boundary problem, estimated difficulty, mode, and timebox. Prefer verified problem IDs and links from the learner's target platforms. Do not claim the repository includes a ready-made rating ladder or a large vetted problem library; grow the library from analyzed problems and track provenance.
+
 ### Run the problem attempt
 
 1. Choose a problem from a curated difficulty ladder or a recent contest, at the edge of his current ability. In study mode, set a reasonable effort window—often about 15–40 minutes, adjusted for the problem and his experience—and present the problem by itself. Let him attempt it before surfacing a pattern card or naming an algorithm. In contest mode, preserve the timed attempt and defer hints and editorial review until the contest ends or he switches modes.
@@ -214,9 +235,15 @@ The tutor can react only to reasoning, code, or judge feedback the learner share
 
 The `quiz` tool is options-only, so use it for focused, gradable checks such as recognizing a cue or distinguishing two candidate patterns. Use a normal problem prompt and review his written solution in chat for open-ended, multi-step solving; do not reduce every solution to multiple choice. A correct answer alone does not show that he recognized the pattern or can transfer it.
 
+### Review a contest
+
+Keep hints and pattern names hidden during the timed attempt. After the contest, ask for the result list and the learner's available notes, code, or recollection. For every wrong or unsolved problem, create a post-contest analysis draft and reconstruct the actual route only from what he shares; label missing steps as inferred or hypothetical. Also review accepted problems that took unusually long or required substantial hints. A verdict alone is not a diagnosis. Link each review to relevant cards, then add one delayed unseen application and one contrast problem to the queue. Do not automatically turn every contest problem or speculative branch into a review card.
+
 ### Make pattern cards from the graph
 
 Create a card when a reasoning move or failure-and-recovery move is reusable and can be tested with one focused retrieval prompt. Derive cards from the per-problem dataset, not from a generic list alone. Use cards for problem recognition, algorithm or data-structure templates, common traps, complexity triggers, early warnings, and recovery moves. Card families can include approach failures, implementation traps, edge cases, early-warning checks, and judge-result recovery. Do not make a separate card for every tiny step or hypothetical failure. The graph holds the full relationships; cards provide short retrieval entry points into it.
+
+Use [`templates/cp-pattern-card.md`](templates/cp-pattern-card.md) for learner-specific cards. Add a move to the learner's library only when it is reusable and source-linked; keep candidate cards labeled until unseen problems support transfer. This repository provides the card format and analysis agent, not a pre-vetted rating-band library.
 
 - **Front:** a short statement fragment, operation pattern, code fragment, failed approach, judge verdict, or decision point, paired with relevant constraints but without the answer. Ask for the likely failure or pattern and the next check/recovery move.
 - **Back:** the algorithm or data structure; its core invariant, recurrence, or proof idea; applicability conditions; time and memory complexity; the failure's cause and earliest warning; the prevention, test, or recovery move; one linked pattern that may follow; and 1–3 linked problems with their platform IDs or links and the shared structural clue, including a near-miss or counterexample.
@@ -225,7 +252,7 @@ Use several fronts for a pattern only when they test meaningfully different cues
 
 ### Persist and space pattern reviews
 
-Keep the pattern graph and review state in the learner's existing linked Markdown note when one is available. Do not store learner-specific patterns in this shared Pi configuration. If no persistent note is available, keep the graph in the current lesson and ask where to save it before promising cross-session reviews.
+Keep the pattern graph and review state in the workspace's browser storage while using the page; use Markdown export for a durable copy. Do not store learner-specific patterns in this shared Pi configuration. Browser storage is local to that browser/profile and can be cleared, so do not describe it as a synced or backed-up record.
 
 Review a learned pattern later with a fresh problem or cue that requires him to retrieve the pattern, explain why it applies, and use it. Hide the pattern name and solution until he has attempted recall. Prefer a changed surface form or a contrast with a nearby pattern over repeating the exact worked example. A due review is practice, not a reason to derail the learner's current goal.
 
@@ -235,7 +262,7 @@ After each card retrieval, rate quality from 0–5: 5 = correct with a clear rea
 
 When a failed card is relevant to a later problem, surface its cue immediately after the learner's first attempt on the next similar problem, then fade it again after successful retrieval. When the graph shows a reliable sequence such as pattern A leading to pattern B, review them as a short linked pair, but keep each retrieval and rating separate. Maintain both directions of the index: each pattern links to its source and twist problems, and each problem lists its tested patterns. At a natural checkpoint after roughly 5–10 problems, run a brief mixed review of due or high-priority cards, including statement-to-algorithm, proof, complexity, and bug-finding prompts, then return to full problem application. Tag evidence by competitive-programming topic; call a pattern broadly reusable only after it succeeds on unfamiliar problems across multiple topic families.
 
-SM-2 helps space retrieval; it does not prove transfer. Check transfer with delayed, unhinted problems he has not seen before, including problems that require distinguishing the target pattern from a similar one.
+SM-2 helps space retrieval; it does not prove transfer. For each unseen transfer attempt, record the problem ID, target or contrast pattern, delay, difficulty, timed/untimed mode, cue level, unaided recognition, applicability explanation, proof/complexity, acceptance, and time in the workspace. Count eligible attempts as well as successes (for example, `2/3 unprompted recognitions`); keep these dimensions separate rather than inventing a single mastery score. Use delayed problems that require distinguishing the target pattern from a similar one. A small sample is evidence to guide the next problem, not proof of general expertise.
 
 ## Formatting — math renders as LaTeX
 

@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>CP Reasoning Workspace</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f2f4f1;
+      --surface: #fff;
+      --surface-muted: #f7f8f6;
+      --ink: #202b2b;
+      --muted: #64716b;
+      --line: #dfe5e1;
+      --line-strong: #cdd6d1;
+      --accent: #176c5c;
+      --accent-hover: #105849;
+      --accent-soft: #e7f3ef;
+      --warning: #8b5b14;
+      --warning-soft: #fff5df;
+      --danger: #9b3d34;
+      --shadow: 0 1px 2px rgb(23 41 35 / 5%), 0 10px 30px rgb(23 41 35 / 4%);
+      --radius: 12px;
+      --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    button, input, textarea, select { font: inherit; }
+    button { color: inherit; }
+    ::selection { color: #123f36; background: #cce9df; }
+    :focus-visible { outline: 3px solid #3d9b83; outline-offset: 2px; }
+
+    .app-header {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      min-height: 68px;
+      padding: 10px 22px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      min-width: 0;
+    }
+    .brand-mark {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3px;
+      width: 30px;
+      height: 30px;
+      padding: 5px;
+      border: 1px solid #b9d6cc;
+      border-radius: 8px;
+      background: var(--accent-soft);
+    }
+    .brand-mark span:first-child { border-radius: 2px 0 0 2px; background: var(--accent); }
+    .brand-mark span:last-child { border: 1px solid #72a899; border-radius: 0 2px 2px 0; background: #fff; }
+    .brand-name { margin: 0; font-size: 14px; font-weight: 680; letter-spacing: -0.02em; }
+    .brand-subtitle { margin: 1px 0 0; color: var(--muted); font-size: 12px; }
+    .header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+    .save-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-right: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .save-dot { width: 7px; height: 7px; border-radius: 50%; background: #4d9a7e; }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-height: 36px;
+      padding: 7px 11px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: var(--surface);
+      color: #354242;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 620;
+      white-space: nowrap;
+      transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+    }
+    .button:hover { border-color: #aebcb5; background: #f8faf8; }
+    .button:active { background: #eef2ef; }
+    .button-primary { border-color: var(--accent); background: var(--accent); color: white; }
+    .button-primary:hover { border-color: var(--accent-hover); background: var(--accent-hover); color: white; }
+    .button-quiet { border-color: transparent; background: transparent; color: var(--muted); }
+    .button-quiet:hover { border-color: var(--line); background: var(--surface-muted); color: var(--ink); }
+    .button svg { width: 15px; height: 15px; flex: none; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(330px, 0.88fr) minmax(490px, 1.12fr);
+      gap: 14px;
+      height: calc(100dvh - 68px);
+      min-height: 520px;
+      padding: 14px;
+    }
+    .pane {
+      display: flex;
+      min-width: 0;
+      min-height: 0;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .pane-header {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 18px 13px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface);
+    }
+    .pane-title { margin: 0; font-size: 18px; font-weight: 680; letter-spacing: -0.02em; }
+    .pane-description { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .pane-body { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-color: #b9c8c0 transparent; scrollbar-width: thin; }
+    .pane-body::-webkit-scrollbar { width: 10px; }
+    .pane-body::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 8px; background: #bdcac3; background-clip: padding-box; }
+
+    .form-block { padding: 17px 18px; border-bottom: 1px solid var(--line); }
+    .form-block:last-child { border-bottom: 0; }
+    .label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+    label, .field-label { color: #394746; font-size: 12px; font-weight: 650; }
+    .field-help { color: #68746e; font-size: 11px; font-weight: 450; }
+    .input, .textarea, .select {
+      width: 100%;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+      transition: border-color 120ms ease, box-shadow 120ms ease;
+    }
+    .input, .select { min-height: 37px; padding: 8px 10px; }
+    .textarea { display: block; min-height: 94px; padding: 10px 11px; resize: vertical; line-height: 1.55; }
+    .textarea:focus, .input:focus, .select:focus { border-color: #62a08d; outline: 0; box-shadow: 0 0 0 3px rgb(47 130 104 / 12%); }
+    .textarea::placeholder, .input::placeholder { color: #68746e; }
+    .statement-area { min-height: clamp(250px, 45vh, 550px); font-family: var(--sans); }
+    .attempt-area { min-height: 170px; font-family: var(--mono); font-size: 12px; }
+    .grid-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(90px, 0.34fr); gap: 10px; }
+    .grid-three { display: grid; grid-template-columns: 1fr 1fr 0.7fr; gap: 9px; }
+    .field + .field { margin-top: 11px; }
+    .field-hint { margin: 6px 0 0; color: #68746e; font-size: 11px; }
+    .micro-label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; font-weight: 600; }
+    .source-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px; gap: 9px; }
+    .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .section-heading h2, .section-heading h3 { margin: 0; font-size: 14px; font-weight: 680; letter-spacing: -0.01em; }
+    .section-heading p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 23px;
+      padding: 2px 8px;
+      border: 1px solid #d6e4de;
+      border-radius: 999px;
+      background: #f2f8f5;
+      color: #3e7666;
+      font-size: 11px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+    .tag-neutral { border-color: var(--line); background: var(--surface-muted); color: var(--muted); }
+    .section-nav {
+      display: flex;
+      gap: 5px;
+      overflow-x: auto;
+      padding: 9px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfb;
+      scrollbar-width: thin;
+    }
+    .section-nav a {
+      flex: none;
+      padding: 5px 8px;
+      border-radius: 6px;
+      color: #63716c;
+      font-size: 11px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .section-nav a:hover, .section-nav a:focus-visible { background: var(--accent-soft); color: var(--accent); }
+    .analysis-intro { padding: 15px 18px 13px; border-bottom: 1px solid var(--line); background: #fbfcfb; }
+    .analysis-intro p { max-width: 72ch; margin: 0; color: #5f6c68; font-size: 12px; }
+    .analysis-section { padding: 18px; border-bottom: 1px solid var(--line); scroll-margin-top: 12px; }
+    .analysis-section:last-child { border-bottom: 0; }
+    .analysis-section .textarea { min-height: 118px; }
+    .analysis-section .textarea.tall { min-height: 180px; }
+    .analysis-section .textarea.short { min-height: 82px; }
+    .field-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 10px; }
+    .graph-format {
+      margin: 8px 0 0;
+      padding: 9px 10px;
+      border: 1px solid #e4eae6;
+      border-radius: 7px;
+      background: var(--surface-muted);
+      color: #5a6863;
+      font-family: var(--mono);
+      font-size: 11px;
+      overflow-wrap: anywhere;
+    }
+    .notice {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      margin-top: 10px;
+      padding: 9px 10px;
+      border: 1px solid #f0dfb7;
+      border-radius: 7px;
+      background: var(--warning-soft);
+      color: #76541d;
+      font-size: 11px;
+    }
+    .notice svg { width: 15px; height: 15px; flex: none; margin-top: 1px; }
+    .cards-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+    .cards-header h3 { margin: 0; font-size: 13px; font-weight: 680; }
+    .cards-header p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .pattern-list { display: grid; gap: 14px; }
+    .pattern-entry { padding: 12px 0 14px; border-top: 1px solid var(--line); }
+    .pattern-entry:first-child { border-top: 0; padding-top: 0; }
+    .pattern-top { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+    .pattern-name { flex: 1; min-width: 0; }
+    .icon-button {
+      display: inline-grid;
+      width: 30px;
+      height: 30px;
+      place-items: center;
+      flex: none;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: transparent;
+      color: #78847f;
+      cursor: pointer;
+    }
+    .icon-button:hover { border-color: #efd4d1; background: #fcf2f0; color: var(--danger); }
+    .icon-button svg { width: 15px; height: 15px; }
+    .pattern-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .pattern-grid .textarea { min-height: 75px; }
+    .review-line { display: grid; grid-template-columns: minmax(130px, 1fr) auto auto; align-items: end; gap: 9px; margin-top: 9px; }
+    .review-line .select { min-height: 34px; padding: 6px 8px; font-size: 11px; }
+    .schedule-meta { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 11px; }
+    .button-small { min-height: 33px; padding: 6px 9px; font-size: 11px; }
+    .review-box {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+      padding-top: 2px;
+    }
+    .review-box label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; }
+    .review-box .input { min-height: 34px; font-size: 11px; }
+    .footer-note { padding: 14px 18px 18px; color: var(--muted); font-size: 11px; }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 1050px) {
+      .workspace { grid-template-columns: minmax(300px, 0.85fr) minmax(430px, 1.15fr); gap: 10px; padding: 10px; }
+      .form-block, .analysis-section { padding-right: 14px; padding-left: 14px; }
+    }
+    @media (max-width: 820px) {
+      .app-header { align-items: flex-start; padding: 12px 14px; }
+      .brand-subtitle { display: none; }
+      .header-actions { flex-wrap: wrap; }
+      .save-status { width: 100%; justify-content: flex-end; margin: 0 2px 2px 0; }
+      .workspace { display: flex; height: auto; min-height: 0; flex-direction: column; padding: 10px; }
+      .pane { max-height: none; overflow: visible; }
+      .pane-body { overflow: visible; }
+      .problem-pane { min-height: 670px; }
+      .analysis-pane { min-height: 800px; }
+      .statement-area { min-height: 300px; }
+    }
+    @media (max-width: 520px) {
+      .app-header { gap: 10px; }
+      .brand { gap: 8px; }
+      .brand-mark { width: 27px; height: 27px; }
+      .brand-name { font-size: 13px; }
+      .header-actions { gap: 5px; }
+      .header-actions .button { min-height: 33px; padding: 6px 8px; font-size: 11px; }
+      .header-actions .button svg { display: none; }
+      .grid-three { grid-template-columns: 1fr 1fr; }
+      .grid-three .field:last-child { grid-column: 1 / -1; }
+      .field-grid, .pattern-grid { grid-template-columns: 1fr; }
+      .review-line { grid-template-columns: 1fr 1fr; }
+      .review-line .field { grid-column: 1 / -1; }
+      .review-box { grid-template-columns: 1fr 1fr; }
+      .review-box .field:last-child { grid-column: 1 / -1; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"><span></span><span></span></div>
+      <div>
+        <p class="brand-name">Reasoning workspace</p>
+        <p class="brand-subtitle">Competitive programming · one problem at a time</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span class="save-status" role="status" aria-live="polite"><span class="save-dot" id="saveDot"></span><span id="saveStatus">Saved in this browser</span></span>
+      <button class="button" id="copyPromptButton" type="button" title="Copy a structured prompt for an AI analysis">
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="7" y="6" width="9" height="11" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M12 6V4.5A1.5 1.5 0 0 0 10.5 3h-6A1.5 1.5 0 0 0 3 4.5v8A1.5 1.5 0 0 0 4.5 14H7" stroke="currentColor" stroke-width="1.5"/></svg>
+        Copy analysis prompt
+      </button>
+      <button class="button button-primary" id="exportButton" type="button" title="Download this problem and analysis as Markdown">
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v9m0 0 3.5-3.5M10 12 6.5 8.5M4 13.5v2A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Export Markdown
+      </button>
+    </div>
+  </header>
+
+  <main class="workspace" aria-label="Competitive programming reasoning workspace">
+    <section class="pane problem-pane" aria-labelledby="problemPaneTitle">
+      <header class="pane-header">
+        <div>
+          <h1 class="pane-title" id="problemPaneTitle">Problem &amp; attempt</h1>
+          <p class="pane-description">Keep the statement and your own reasoning here.</p>
+        </div>
+        <span class="tag tag-neutral">Learner view</span>
+      </header>
+      <div class="pane-body">
+        <div class="form-block">
+          <div class="field">
+            <div class="label-row"><label for="problemTitle">Problem title</label></div>
+            <input class="input" id="problemTitle" data-field="problemTitle" placeholder="e.g. Array and Operations">
+          </div>
+          <div class="field" style="margin-top: 12px">
+            <div class="label-row"><label for="problemUrl">Source link</label><span class="field-help">Optional</span></div>
+            <div class="source-row">
+              <input class="input" id="problemUrl" data-field="problemUrl" type="url" placeholder="https://…">
+              <input class="input" id="problemId" data-field="problemId" aria-label="Problem ID" placeholder="ID / round">
+            </div>
+          </div>
+          <div class="grid-three" style="margin-top: 12px">
+            <div class="field">
+              <label class="micro-label" for="platform">Platform</label>
+              <input class="input" id="platform" data-field="platform" placeholder="Codeforces">
+            </div>
+            <div class="field">
+              <label class="micro-label" for="topicTags">Topic tags</label>
+              <input class="input" id="topicTags" data-field="topicTags" placeholder="graphs, dp…">
+            </div>
+            <div class="field">
+              <label class="micro-label" for="difficulty">Difficulty</label>
+              <input class="input" id="difficulty" data-field="difficulty" placeholder="e.g. 1500">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-block">
+          <div class="label-row"><label for="problemText">Problem statement</label><span class="field-help">Paste the statement or a concise summary</span></div>
+          <textarea class="textarea statement-area" id="problemText" data-field="problemText" placeholder="Paste the problem statement here…"></textarea>
+        </div>
+
+        <div class="form-block">
+          <div class="section-heading">
+            <div><h2>Your attempt</h2><p>Record hypotheses, code, tests, and where you got stuck.</p></div>
+            <span class="tag tag-neutral">Private notes</span>
+          </div>
+          <label class="sr-only" for="attemptNotes">Your attempt notes and code</label>
+          <textarea class="textarea attempt-area" id="attemptNotes" data-field="attemptNotes" placeholder="What did you try first? What was your current hypothesis? Paste a code fragment or failed test if useful."></textarea>
+          <p class="field-hint">The analysis pane is a coach-side record. During practice, reveal only a cue when you are stuck.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="pane analysis-pane" aria-labelledby="analysisPaneTitle">
+      <header class="pane-header">
+        <div>
+          <h2 class="pane-title" id="analysisPaneTitle">Reasoning analysis</h2>
+          <p class="pane-description">Trace how the solution is found, where it can fail, and what transfers.</p>
+        </div>
+        <span class="tag">Coach-side record</span>
+      </header>
+      <nav class="section-nav" aria-label="Analysis sections">
+        <a href="#model">Model</a>
+        <a href="#concepts">Concepts</a>
+        <a href="#routes">Solver routes</a>
+        <a href="#failures">Failure map</a>
+        <a href="#construction">Why this way</a>
+        <a href="#checks">Checks</a>
+        <a href="#patterns">Cards &amp; review</a>
+      </nav>
+      <div class="pane-body" id="analysisBody">
+        <div class="analysis-intro">
+          <p>Build a useful, evidence-labeled map—not an imagined exhaustive transcript of an expert’s thoughts. Keep the learner’s attempt separate from simulated routes.</p>
+        </div>
+
+        <section class="analysis-section" id="model" aria-labelledby="modelHeading">
+          <div class="section-heading"><div><h3 id="modelHeading">Problem model</h3><p>State the goal, constraints, and what they rule in or out.</p></div></div>
+          <div class="field-grid">
+            <div class="field"><label class="micro-label" for="goal">Goal in one sentence</label><textarea class="textarea short" id="goal" data-field="goal" placeholder="What must be computed or decided?"></textarea></div>
+            <div class="field"><label class="micro-label" for="constraints">Important constraints</label><textarea class="textarea short" id="constraints" data-field="constraints" placeholder="n, value ranges, test count, aggregate limits…"></textarea></div>
+          </div>
+          <div class="field" style="margin-top: 10px"><label class="micro-label" for="baseline">Straightforward baseline &amp; cost</label><textarea class="textarea short" id="baseline" data-field="baseline" placeholder="First simple approach; time and memory cost; which limit matters?"></textarea></div>
+        </section>
+
+        <section class="analysis-section" id="concepts" aria-labelledby="conceptsHeading">
+          <div class="section-heading"><div><h3 id="conceptsHeading">Concepts &amp; dependencies</h3><p>Connect prerequisites, invariants, data structures, and the solution they support.</p></div></div>
+          <label class="sr-only" for="conceptGraph">Concept graph notes</label>
+          <textarea class="textarea tall" id="conceptGraph" data-field="conceptGraph" placeholder="For each concept: what job does it do here, what does it depend on, and what becomes possible because of it?&#10;&#10;Example structure:&#10;prefix sums → constant-time range query → test candidate boundaries&#10;monotone predicate → binary search → first feasible answer"></textarea>
+          <p class="graph-format">Useful edge types: requires · supports · alternative · conflicts with · fails when</p>
+        </section>
+
+        <section class="analysis-section" id="routes" aria-labelledby="routesHeading">
+          <div class="section-heading"><div><h3 id="routesHeading">How a solver could reach it</h3><p>Capture successful reasoning and distinct plausible alternatives.</p></div></div>
+          <label class="sr-only" for="solverRoutes">Solver routes</label>
+          <textarea class="textarea tall" id="solverRoutes" data-field="solverRoutes" placeholder="Strong route: cue → question → observation → invariant/proof → algorithm.&#10;Baseline route: what is tempting, and what constraint rules it out?&#10;Other plausible route: where does it break, and how could a solver recover?&#10;&#10;Label each as observed, derived, reconstructed, or hypothetical. Do not invent a real expert’s personal history."></textarea>
+        </section>
+
+        <section class="analysis-section" id="failures" aria-labelledby="failuresHeading">
+          <div class="section-heading"><div><h3 id="failuresHeading">Failure &amp; recovery map</h3><p>Record realistic branches that teach a useful distinction.</p></div><span class="tag tag-neutral">Not exhaustive</span></div>
+          <label class="sr-only" for="failureMap">Failure and recovery map</label>
+          <textarea class="textarea tall" id="failureMap" data-field="failureMap" placeholder="One branch per line or block:&#10;Trigger → mistaken assumption/action → why it seems plausible → earliest warning → test or prevention → recovery&#10;&#10;Consider only relevant risks: wrong state/update/return value, stale cache, invalid proof, complexity, overflow, boundaries, per-test-case state, or weak verification. Mark learner-observed errors separately from hypotheses."></textarea>
+        </section>
+
+        <section class="analysis-section" id="construction" aria-labelledby="constructionHeading">
+          <div class="section-heading"><div><h3 id="constructionHeading">Why this construction?</h3><p>Separate what the constraints force from what is a design choice.</p></div></div>
+          <label class="sr-only" for="constructionReason">Why the solution is constructed this way</label>
+          <textarea class="textarea" id="constructionReason" data-field="constructionReason" placeholder="What is the bottleneck or key observation? Why does each component exist? Which alternatives fail correctness, limits, or only efficiency? What trade-offs remain?"></textarea>
+        </section>
+
+        <section class="analysis-section" id="checks" aria-labelledby="checksHeading">
+          <div class="section-heading"><div><h3 id="checksHeading">Second-nature checks</h3><p>Quick questions a strong solver may run without stopping to narrate them.</p></div></div>
+          <label class="sr-only" for="expertChecks">Expert checks</label>
+          <textarea class="textarea" id="expertChecks" data-field="expertChecks" placeholder="Before choosing: what does brute force cost?&#10;Before coding: what does each state mean?&#10;Before submitting: which boundary or worst case is untested?&#10;After a verdict: what smallest counterexample would distinguish likely causes?"></textarea>
+        </section>
+
+        <section class="analysis-section" id="patterns" aria-labelledby="patternsHeading">
+          <div class="cards-header">
+            <div><h3 id="patternsHeading">Reusable pattern cards</h3><p>Keep the front as a retrieval cue; save the recovery for after an attempt.</p></div>
+            <button class="button button-small" id="addPatternButton" type="button">Add pattern</button>
+          </div>
+          <div class="pattern-list" id="patternList" aria-live="polite"></div>
+          <div class="notice">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7.25" stroke="currentColor" stroke-width="1.5"/><path d="M10 9v4m0-6h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span>SM-2 schedules retrieval; it does not prove transfer. Log delayed, unseen problems separately from card ratings.</span>
+          </div>
+        </section>
+
+        <section class="analysis-section" id="transfer" aria-labelledby="transferHeading">
+          <div class="section-heading"><div><h3 id="transferHeading">Transfer evidence</h3><p>Keep recognition, proof, implementation, and speed distinct.</p></div></div>
+          <div class="grid-three">
+            <div class="field"><label class="micro-label" for="transferProblem">Unseen problem ID</label><input class="input" id="transferProblem" data-field="transferProblem" placeholder="Platform / ID"></div>
+            <div class="field"><label class="micro-label" for="transferMode">Mode</label><select class="select" id="transferMode" data-field="transferMode"><option>Untimed</option><option>Timed</option></select></div>
+            <div class="field"><label class="micro-label" for="hintLevel">Hint level</label><select class="select" id="hintLevel" data-field="hintLevel"><option value="0">0 · none</option><option value="1">1 · checkpoint</option><option value="2">2 · constraint</option><option value="3">3 · trigger</option><option value="4">4 · partial step</option><option value="5">5 · pseudocode</option></select></div>
+          </div>
+          <div class="field" style="margin-top: 10px"><label class="micro-label" for="transferNotes">Evidence &amp; next test</label><textarea class="textarea short" id="transferNotes" data-field="transferNotes" placeholder="Unaided pattern recognition? Applicability explained? Proof and complexity sound? Accepted? Time? What contrast problem should come next?"></textarea></div>
+        </section>
+
+        <div class="footer-note">This page stores its draft in this browser. Export Markdown to keep a durable copy in your notes.</div>
+      </div>
+    </section>
+  </main>
+
+  <template id="patternTemplate">
+    <article class="pattern-entry" data-pattern-entry>
+      <div class="pattern-top">
+        <div class="pattern-name"><label class="sr-only" data-label="name">Pattern name</label><input class="input" data-card-field="name" placeholder="Pattern or failure-recovery move"></div>
+        <button class="icon-button" type="button" data-remove-card aria-label="Remove pattern card" title="Remove pattern card">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 6h12M8 6V4.5h4V6m-6.5 0 .6 9.5h7.8l.6-9.5M8.5 9v4m3-4v4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+      <div class="pattern-grid">
+        <div><label class="micro-label" data-label="trigger">Front · trigger only</label><textarea class="textarea" data-card-field="trigger" placeholder="What cue should make the learner retrieve this move? Do not reveal the answer."></textarea></div>
+        <div><label class="micro-label" data-label="recovery">Back · reasoning &amp; recovery</label><textarea class="textarea" data-card-field="recovery" placeholder="Why it applies, early warning, proof/check, and recovery."></textarea></div>
+      </div>
+      <div class="review-line">
+        <div class="field">
+          <label class="micro-label" data-label="quality">Retrieval quality (0–5)</label>
+          <select class="select" data-card-field="quality">
+            <option value="" disabled selected>Choose a rating…</option>
+            <option value="5">5 · clear, easy recall</option>
+            <option value="4">4 · correct, slight hesitation</option>
+            <option value="3">3 · correct, effortful</option>
+            <option value="2">2 · partial / needed a hint</option>
+            <option value="1">1 · mostly missed</option>
+            <option value="0">0 · no recall</option>
+          </select>
+        </div>
+        <button class="button button-small" type="button" data-rate-card>Rate &amp; schedule</button>
+        <span class="tag tag-neutral" data-review-mode>Untimed</span>
+        <p class="schedule-meta" data-schedule-meta>New card · not scheduled</p>
+      </div>
+      <div class="review-box" aria-label="SM-2 schedule state">
+        <div><label data-label="repetitions">Repetitions</label><input class="input" type="number" min="0" value="0" data-card-field="repetitions"></div>
+        <div><label data-label="interval">Interval days</label><input class="input" type="number" min="0" value="0" data-card-field="interval"></div>
+        <div><label data-label="ease">Ease factor</label><input class="input" type="number" min="1.3" step="0.01" value="2.5" data-card-field="ease"></div>
+      </div>
+    </article>
+  </template>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = "cp-reasoning-workspace-v1";
+      const fieldNodes = [...document.querySelectorAll("[data-field]")];
+      const patternList = document.getElementById("patternList");
+      const patternTemplate = document.getElementById("patternTemplate");
+      const saveStatus = document.getElementById("saveStatus");
+      const saveDot = document.getElementById("saveDot");
+      let saveTimer;
+
+      function currentDateString(date) {
+        const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+        return local.toISOString().slice(0, 10);
+      }
+
+      function readCard(entry) {
+        const value = (name) => entry.querySelector(`[data-card-field="${name}"]`)?.value ?? "";
+        return {
+          name: value("name"),
+          trigger: value("trigger"),
+          recovery: value("recovery"),
+          quality: value("quality"),
+          repetitions: Number(value("repetitions") || 0),
+          interval: Number(value("interval") || 0),
+          ease: Number(value("ease") || 2.5),
+          nextReview: entry.dataset.nextReview || "",
+          lastQuality: entry.dataset.lastQuality || "",
+          mode: entry.dataset.mode || "Untimed"
+        };
+      }
+
+      function setCardField(entry, name, value) {
+        const node = entry.querySelector(`[data-card-field="${name}"]`);
+        if (node && value !== undefined && value !== null) node.value = value;
+      }
+
+      function updateScheduleText(entry) {
+        const repetitions = Number(entry.querySelector('[data-card-field="repetitions"]').value || 0);
+        const interval = Number(entry.querySelector('[data-card-field="interval"]').value || 0);
+        const ease = Number(entry.querySelector('[data-card-field="ease"]').value || 2.5);
+        const meta = entry.querySelector("[data-schedule-meta]");
+        const mode = entry.querySelector("[data-review-mode]");
+        const due = entry.dataset.nextReview;
+        mode.textContent = entry.dataset.mode || "Untimed";
+        meta.textContent = due
+          ? `Next review ${due} · ${interval} day${interval === 1 ? "" : "s"} · EF ${ease.toFixed(2)} · ${repetitions} success${repetitions === 1 ? "" : "es"}`
+          : "New card · not scheduled";
+      }
+
+      function addPattern(data = {}) {
+        const fragment = patternTemplate.content.cloneNode(true);
+        const entry = fragment.querySelector("[data-pattern-entry]");
+        entry.dataset.nextReview = data.nextReview || "";
+        entry.dataset.lastQuality = data.lastQuality ?? "";
+        entry.dataset.mode = data.mode || "Untimed";
+        for (const name of ["name", "trigger", "recovery", "quality", "repetitions", "interval", "ease"]) {
+          setCardField(entry, name, data[name]);
+        }
+        const index = patternList.children.length + 1;
+        entry.querySelector('[data-label="name"]').htmlFor = `patternName${index}`;
+        entry.querySelector('[data-card-field="name"]').id = `patternName${index}`;
+        entry.querySelector('[data-label="trigger"]').htmlFor = `patternTrigger${index}`;
+        entry.querySelector('[data-card-field="trigger"]').id = `patternTrigger${index}`;
+        entry.querySelector('[data-label="recovery"]').htmlFor = `patternRecovery${index}`;
+        entry.querySelector('[data-card-field="recovery"]').id = `patternRecovery${index}`;
+        entry.querySelector('[data-label="quality"]').htmlFor = `patternQuality${index}`;
+        entry.querySelector('[data-card-field="quality"]').id = `patternQuality${index}`;
+        for (const name of ["repetitions", "interval", "ease"]) {
+          const node = entry.querySelector(`[data-card-field="${name}"]`);
+          node.id = `pattern${name}${index}`;
+          entry.querySelector(`[data-label="${name}"]`).htmlFor = node.id;
+        }
+        entry.querySelector("[data-remove-card]").addEventListener("click", () => {
+          entry.remove();
+          scheduleSave();
+        });
+        entry.querySelector("[data-rate-card]").addEventListener("click", () => rateCard(entry));
+        entry.addEventListener("input", scheduleSave);
+        entry.addEventListener("change", scheduleSave);
+        patternList.append(entry);
+        updateScheduleText(entry);
+        return entry;
+      }
+
+      function rateCard(entry) {
+        const qualityValue = entry.querySelector('[data-card-field="quality"]').value;
+        if (qualityValue === "") {
+          entry.querySelector("[data-schedule-meta]").textContent = "Choose a retrieval rating before scheduling.";
+          entry.querySelector('[data-card-field="quality"]').focus();
+          return;
+        }
+        const quality = Number(qualityValue);
+        const repetitionsNode = entry.querySelector('[data-card-field="repetitions"]');
+        const intervalNode = entry.querySelector('[data-card-field="interval"]');
+        const easeNode = entry.querySelector('[data-card-field="ease"]');
+        let repetitions = Number(repetitionsNode.value || 0);
+        let interval = Number(intervalNode.value || 0);
+        let ease = Number(easeNode.value || 2.5);
+        const miss = 5 - quality;
+        ease = Math.max(1.3, ease + 0.1 - miss * (0.08 + miss * 0.02));
+
+        if (quality < 3) {
+          repetitions = 0;
+          interval = 1;
+        } else {
+          repetitions += 1;
+          interval = repetitions === 1 ? 1 : repetitions === 2 ? 6 : Math.round(interval * ease);
+        }
+
+        const next = new Date();
+        next.setDate(next.getDate() + interval);
+        repetitionsNode.value = String(repetitions);
+        intervalNode.value = String(interval);
+        easeNode.value = ease.toFixed(2);
+        entry.dataset.nextReview = currentDateString(next);
+        entry.dataset.lastQuality = String(quality);
+        entry.dataset.mode = document.getElementById("transferMode").value;
+        updateScheduleText(entry);
+        scheduleSave();
+      }
+
+      function readState() {
+        const fields = Object.fromEntries(fieldNodes.map((node) => [node.dataset.field, node.value]));
+        return { version: 1, updatedAt: new Date().toISOString(), fields, patterns: [...patternList.children].map(readCard) };
+      }
+
+      function saveNow() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(readState()));
+          saveStatus.textContent = "Saved in this browser";
+          saveDot.style.background = "#4d9a7e";
+        } catch {
+          saveStatus.textContent = "Could not save locally";
+          saveDot.style.background = "#b56d31";
+        }
+      }
+
+      function scheduleSave() {
+        saveStatus.textContent = "Saving…";
+        saveDot.style.background = "#c18a36";
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(saveNow, 320);
+      }
+
+      function loadState() {
+        let state;
+        try { state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"); }
+        catch { state = null; }
+        if (!state || state.version !== 1) return;
+        for (const node of fieldNodes) {
+          if (Object.hasOwn(state.fields || {}, node.dataset.field)) node.value = state.fields[node.dataset.field];
+        }
+        for (const card of state.patterns || []) addPattern(card);
+      }
+
+      function markdownEscape(text) {
+        return String(text || "").trim();
+      }
+
+      function makeMarkdown() {
+        const state = readState();
+        const f = state.fields;
+        const title = f.problemTitle || "Untitled problem";
+        const sections = [
+          `# ${title}`,
+          [f.platform, f.problemId, f.difficulty && `Rating ${f.difficulty}`, f.topicTags].filter(Boolean).join(" · "),
+          f.problemUrl ? `Source: ${f.problemUrl}` : "",
+          "## Problem statement",
+          markdownEscape(f.problemText),
+          "## Learner attempt",
+          markdownEscape(f.attemptNotes),
+          "## Problem model",
+          `**Goal:** ${markdownEscape(f.goal) || "—"}`,
+          `**Constraints:** ${markdownEscape(f.constraints) || "—"}`,
+          `**Baseline:** ${markdownEscape(f.baseline) || "—"}`,
+          "## Concepts and dependencies",
+          markdownEscape(f.conceptGraph),
+          "## Solver routes",
+          markdownEscape(f.solverRoutes),
+          "## Failure and recovery map",
+          markdownEscape(f.failureMap),
+          "## Why this construction",
+          markdownEscape(f.constructionReason),
+          "## Second-nature checks",
+          markdownEscape(f.expertChecks),
+          "## Pattern cards",
+          ...(state.patterns.length ? state.patterns.flatMap((card) => [
+            `### ${card.name || "Untitled pattern"}`,
+            `**Front / trigger:** ${markdownEscape(card.trigger) || "—"}`,
+            `**Back / recovery:** ${markdownEscape(card.recovery) || "—"}`,
+            `**SM-2:** repetitions ${card.repetitions}, interval ${card.interval} days, ease ${Number(card.ease).toFixed(2)}, next review ${card.nextReview || "not scheduled"}, last quality ${card.lastQuality || "not rated"}`
+          ]) : ["No cards yet."]),
+          "## Transfer evidence",
+          `**Problem:** ${markdownEscape(f.transferProblem) || "—"}`,
+          `**Mode:** ${markdownEscape(f.transferMode) || "—"} · **Hint level:** ${f.hintLevel || 0}`,
+          markdownEscape(f.transferNotes),
+          "",
+          `---\nSaved from CP Reasoning Workspace on ${new Date().toLocaleDateString()}.`
+        ].filter((part) => part !== undefined);
+        return sections.join("\n\n");
+      }
+
+      function filenameSlug(value) {
+        return (value || "cp-problem-analysis").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 64) || "cp-problem-analysis";
+      }
+
+      function download(name, contents, type) {
+        const blob = new Blob([contents], { type });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = name;
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      function makeAnalysisPrompt() {
+        const state = readState();
+        const f = state.fields;
+        return `Create a coach-side competitive-programming problem analysis from the material below. Do not show the full analysis to the learner during their attempt. Do not claim to know an expert's private thoughts or enumerate every possible failure. Separate observed facts, derived conclusions, reconstructions, and hypothetical branches; state confidence and cite source URLs when available. Cover concepts and dependencies, a successful first-principles route, distinct plausible alternatives and where they fail, realistic failure/recovery branches, why the accepted construction fits, second-nature checks, and only reusable pattern cards. Do not claim a learner made an error unless the attempt notes show it.\n\n## Metadata\nTitle: ${f.problemTitle || "Unknown"}\nPlatform / ID: ${[f.platform, f.problemId].filter(Boolean).join(" / ") || "Unknown"}\nDifficulty: ${f.difficulty || "Unknown"}\nTags: ${f.topicTags || "Unknown"}\nSource: ${f.problemUrl || "Not supplied"}\n\n## Problem statement\n${f.problemText || "Not supplied"}\n\n## Learner attempt shared so far\n${f.attemptNotes || "No attempt notes supplied"}\n\n## Current problem model\nGoal: ${f.goal || "Not supplied"}\nConstraints: ${f.constraints || "Not supplied"}\nBaseline: ${f.baseline || "Not supplied"}\n\nReturn a structured Markdown record. Mark unknowns instead of inventing details. Prefer official statements/editorials and verify constraints and complexity before presenting conclusions.`;
+      }
+
+      async function copyAnalysisPrompt() {
+        const prompt = makeAnalysisPrompt();
+        try {
+          await navigator.clipboard.writeText(prompt);
+          saveStatus.textContent = "Analysis prompt copied";
+          setTimeout(() => { saveStatus.textContent = "Saved in this browser"; }, 1800);
+        } catch {
+          const helper = document.createElement("textarea");
+          helper.value = prompt;
+          helper.setAttribute("readonly", "");
+          helper.style.position = "fixed";
+          helper.style.opacity = "0";
+          document.body.append(helper);
+          helper.select();
+          const copied = document.execCommand("copy");
+          helper.remove();
+          saveStatus.textContent = copied ? "Analysis prompt copied" : "Clipboard unavailable";
+          setTimeout(() => { saveStatus.textContent = "Saved in this browser"; }, 1800);
+        }
+      }
+
+      fieldNodes.forEach((node) => {
+        node.addEventListener("input", scheduleSave);
+        node.addEventListener("change", scheduleSave);
+      });
+      window.addEventListener("pagehide", saveNow);
+      document.getElementById("addPatternButton").addEventListener("click", () => {
+        const card = addPattern();
+        card.querySelector('[data-card-field="name"]').focus();
+        scheduleSave();
+      });
+      document.getElementById("copyPromptButton").addEventListener("click", copyAnalysisPrompt);
+      document.getElementById("exportButton").addEventListener("click", () => {
+        const title = document.getElementById("problemTitle").value;
+        download(`${filenameSlug(title)}.md`, makeMarkdown(), "text/markdown;charset=utf-8");
+      });
+
+      loadState();
+      if (patternList.children.length === 0) addPattern();
+      updateScheduleText([...patternList.children][0]);
+      saveNow();
+    })();
+  </script>
+</body>
+</html>
