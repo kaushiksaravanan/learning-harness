@@ -28,6 +28,7 @@
     }
 
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
     html { scroll-behavior: smooth; }
     body {
       margin: 0;
@@ -110,6 +111,7 @@
     .button-primary:hover { border-color: var(--accent-hover); background: var(--accent-hover); color: white; }
     .button-quiet { border-color: transparent; background: transparent; color: var(--muted); }
     .button-quiet:hover { border-color: var(--line); background: var(--surface-muted); color: var(--ink); }
+    .button:disabled { cursor: not-allowed; opacity: 0.55; }
     .button svg { width: 15px; height: 15px; flex: none; }
 
     .workspace {
@@ -278,6 +280,54 @@
     .review-box label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; }
     .review-box .input { min-height: 34px; font-size: 11px; }
     .footer-note { padding: 14px 18px 18px; color: var(--muted); font-size: 11px; }
+    .attempt-controls { display: grid; grid-template-columns: 1fr 1fr 0.75fr; gap: 9px; margin-top: 12px; }
+    .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 12px 0; }
+    .check-label { display: flex; align-items: center; gap: 7px; color: #45524e; font-size: 12px; }
+    .check-label input { accent-color: var(--accent); }
+    .attempt-history { display: grid; gap: 8px; margin-top: 12px; }
+    .attempt-row { padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; background: #fbfcfb; }
+    .attempt-row strong { font-size: 12px; }
+    .attempt-row p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .graph-form { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 9px; margin-bottom: 14px; }
+    .graph-form .field:last-of-type { grid-column: 1 / -1; }
+    .graph-list { display: grid; gap: 6px; }
+    .graph-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 8px 9px; border-bottom: 1px solid var(--line); }
+    .graph-row:first-child { border-top: 1px solid var(--line); }
+    .graph-row strong { overflow-wrap: anywhere; font-size: 12px; font-weight: 620; }
+    .graph-row small { color: var(--muted); font-size: 11px; }
+    .graph-edges { display: grid; gap: 5px; margin-top: 10px; }
+    .graph-edge-row { padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; color: #52615b; font-size: 11px; overflow-wrap: anywhere; }
+    .graph-insight { margin-top: 12px; padding: 10px 11px; border: 1px solid #d4e4dd; border-radius: 7px; background: #f2f8f5; color: #31584e; font-size: 12px; }
+    .graph-insight p { margin: 4px 0 0; }
+    .near-miss-practice { margin-top: 14px; padding: 13px; border: 1px solid #d6e4de; border-radius: 8px; background: #f7faf8; }
+    .near-miss-practice .review-front { margin-bottom: 8px; white-space: pre-wrap; }
+    .dialog {
+      width: min(720px, calc(100vw - 24px));
+      max-height: min(82dvh, 850px);
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: 0 24px 80px rgb(18 38 30 / 24%);
+    }
+    .dialog::backdrop { background: rgb(18 29 25 / 42%); }
+    .dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 18px; border-bottom: 1px solid var(--line); }
+    .dialog-header h2 { margin: 0; font-size: 18px; }
+    .dialog-header p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .dialog-body { max-height: calc(min(82dvh, 850px) - 80px); overflow: auto; padding: 16px 18px 20px; }
+    .dialog-list { display: grid; gap: 0; }
+    .library-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .library-row h3 { margin: 0; font-size: 13px; }
+    .library-row p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .library-row-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+    .empty-state { padding: 24px 10px; color: var(--muted); text-align: center; }
+    .review-front { margin: 8px 0 14px; padding: 13px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-muted); color: #34423d; white-space: pre-wrap; }
+    .review-back { margin: 12px 0; padding: 12px; border-left: 2px solid var(--accent); background: var(--accent-soft); color: #28493f; white-space: pre-wrap; }
+    .review-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+    .review-progress { color: var(--muted); font-size: 12px; }
+    .graph-warning { color: var(--warning); font-size: 11px; }
     .sr-only {
       position: absolute;
       width: 1px;
@@ -321,6 +371,14 @@
       .review-line .field { grid-column: 1 / -1; }
       .review-box { grid-template-columns: 1fr 1fr; }
       .review-box .field:last-child { grid-column: 1 / -1; }
+      .attempt-controls { grid-template-columns: 1fr 1fr; }
+      .attempt-controls .field:last-child { grid-column: 1 / -1; }
+      .check-grid { grid-template-columns: 1fr; }
+      .graph-form { grid-template-columns: 1fr; }
+      .graph-form .field:last-of-type { grid-column: auto; }
+      .graph-row { grid-template-columns: 74px minmax(0, 1fr); }
+      .graph-row small { grid-column: 2; }
+      .library-row { align-items: flex-start; flex-direction: column; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
@@ -338,11 +396,17 @@
     </div>
     <div class="header-actions">
       <span class="save-status" role="status" aria-live="polite"><span class="save-dot" id="saveDot"></span><span id="saveStatus">Saved in this browser</span></span>
-      <button class="button" id="copyPromptButton" type="button" title="Copy a structured prompt for an AI analysis">
+      <button class="button" id="libraryButton" type="button" title="Browse saved problems">Library <span class="tag tag-neutral" id="libraryCount">1</span></button>
+      <button class="button" id="reviewButton" type="button" title="Review due cards from all problems">Review today <span class="tag tag-neutral" id="dueCount">0</span></button>
+      <button class="button" id="newProblemButton" type="button">New problem</button>
+      <button class="button" id="copyPromptButton" type="button" title="Copy a structured prompt for an AI analysis" hidden>
         <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="7" y="6" width="9" height="11" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M12 6V4.5A1.5 1.5 0 0 0 10.5 3h-6A1.5 1.5 0 0 0 3 4.5v8A1.5 1.5 0 0 0 4.5 14H7" stroke="currentColor" stroke-width="1.5"/></svg>
         Copy analysis prompt
       </button>
-      <button class="button button-primary" id="exportButton" type="button" title="Download this problem and analysis as Markdown">
+      <button class="button" id="backupButton" type="button" title="Export the entire problem library as JSON" hidden>Backup JSON</button>
+      <button class="button" id="importButton" type="button" title="Restore a library JSON backup" hidden>Import</button>
+      <input class="sr-only" type="file" id="importFile" accept="application/json,.json">
+      <button class="button button-primary" id="exportButton" type="button" title="Download this problem and analysis as Markdown" hidden>
         <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v9m0 0 3.5-3.5M10 12 6.5 8.5M4 13.5v2A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Export Markdown
       </button>
@@ -356,7 +420,7 @@
           <h1 class="pane-title" id="problemPaneTitle">Problem &amp; attempt</h1>
           <p class="pane-description">Keep the statement and your own reasoning here.</p>
         </div>
-        <span class="tag tag-neutral">Learner view</span>
+        <span class="tag tag-neutral" id="activeProblemTag">Draft</span>
       </header>
       <div class="pane-body">
         <div class="form-block">
@@ -400,6 +464,37 @@
           <label class="sr-only" for="attemptNotes">Your attempt notes and code</label>
           <textarea class="textarea attempt-area" id="attemptNotes" data-field="attemptNotes" placeholder="What did you try first? What was your current hypothesis? Paste a code fragment or failed test if useful."></textarea>
           <p class="field-hint">The analysis pane is a coach-side record. During practice, reveal only a cue when you are stuck.</p>
+          <div class="form-block" style="padding-right: 0; padding-left: 0; margin-top: 16px">
+            <div class="section-heading"><div><h2>Log this attempt</h2><p>Record how you reasoned, not only whether the judge accepted it.</p></div></div>
+            <div class="attempt-controls">
+              <div class="field"><label class="micro-label" for="attemptMode">Mode</label><select class="select" id="attemptMode"><option>Untimed</option><option>Timed</option></select></div>
+              <div class="field"><label class="micro-label" for="attemptResult">Result</label><select class="select" id="attemptResult"><option>Unsolved</option><option>Partial</option><option>Solved</option><option>Wrong answer</option><option>Time limit</option><option>Runtime error</option></select></div>
+              <div class="field"><label class="micro-label" for="attemptMinutes">Minutes</label><input class="input" id="attemptMinutes" type="number" min="0" step="1" placeholder="—"></div>
+              <div class="field"><label class="micro-label" for="attemptHintLevel">Highest cue used</label><select class="select" id="attemptHintLevel"><option value="0">0 · none</option><option value="1">1 · checkpoint</option><option value="2">2 · constraint</option><option value="3">3 · pattern cue</option><option value="4">4 · partial step</option><option value="5">5 · pseudocode</option></select></div>
+              <div class="field" style="grid-column: 1 / -1"><label class="micro-label" for="attemptPattern">Pattern tested, if known</label><select class="select" id="attemptPattern"><option value="">No pattern selected</option></select></div>
+            </div>
+            <div class="check-grid">
+              <label class="check-label"><input type="checkbox" id="attemptUnseen"> Unseen problem / solution</label>
+              <label class="check-label"><input type="checkbox" id="approachUnaided"> Chose approach without a cue</label>
+              <label class="check-label"><input type="checkbox" id="approachJustified"> Explained why it applies</label>
+              <label class="check-label"><input type="checkbox" id="proofSound"> Proof or invariant sound</label>
+              <label class="check-label"><input type="checkbox" id="implementationCorrect"> Implementation correct</label>
+              <label class="check-label"><input type="checkbox" id="distinguishedNearMiss"> Explained why the familiar pattern fails here</label>
+            </div>
+            <div class="field">
+              <label class="micro-label" for="validationSource">Feedback basis</label>
+              <select class="select" id="validationSource">
+                <option>Self-assessed</option><option>Online judge accepted</option><option>Counterexample tested</option><option>Coach reviewed proof</option><option>Official analysis checked</option>
+              </select>
+              <p class="field-hint">A judge verdict checks output on its tests; it does not verify your proof. Keep self-assessment separate from external checks.</p>
+            </div>
+            <div class="field" style="margin-top: 10px"><label class="micro-label" for="validationEvidence">Feedback evidence or reference</label><input class="input" id="validationEvidence" placeholder="Submission ID, counterexample, coach note, or analysis link"></div>
+            <div class="review-actions">
+              <button class="button button-primary" id="recordAttemptButton" type="button">Save attempt record</button>
+              <span class="review-progress" id="attemptLogStatus" role="status" aria-live="polite"></span>
+            </div>
+            <div class="attempt-history" id="attemptHistory"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -410,20 +505,52 @@
           <h2 class="pane-title" id="analysisPaneTitle">Reasoning analysis</h2>
           <p class="pane-description">Trace how the solution is found, where it can fail, and what transfers.</p>
         </div>
-        <span class="tag">Coach-side record</span>
+        <button class="button button-small" id="modeToggle" type="button" aria-pressed="false">Switch to coach view</button>
       </header>
-      <nav class="section-nav" aria-label="Analysis sections">
+      <nav class="section-nav" id="sectionNav" aria-label="Analysis sections" hidden>
         <a href="#model">Model</a>
         <a href="#concepts">Concepts</a>
+        <a href="#knowledgeGraph">Graph</a>
         <a href="#routes">Solver routes</a>
         <a href="#failures">Failure map</a>
+        <a href="#counterfactual">Contrast</a>
         <a href="#construction">Why this way</a>
         <a href="#checks">Checks</a>
         <a href="#patterns">Cards &amp; review</a>
       </nav>
       <div class="pane-body" id="analysisBody">
+        <section class="analysis-section" id="learnerPanel" aria-labelledby="practiceHeading">
+          <div class="section-heading"><div><h3 id="practiceHeading">Practice</h3><p>Try the problem first. Prepared cues are released one at a time.</p></div><span class="tag tag-neutral">Learner view</span></div>
+          <div class="notice"><span>Write your current approach or test in the left pane before asking for a cue. After each cue, record what you will try next.</span></div>
+          <p class="field-hint" id="coachGateStatus" role="status" aria-live="polite">Record your first attempt before opening the coach analysis.</p>
+          <section class="near-miss-practice" id="nearMissPractice" hidden aria-labelledby="nearMissHeading">
+            <div class="section-heading"><div><h3 id="nearMissHeading">Contrast check</h3><p>Test whether a familiar pattern applies to a similar case.</p></div></div>
+            <p class="review-front" id="nearMissStatement"></p>
+            <p class="field-hint" id="nearMissQuestion"></p>
+            <div class="field"><label for="nearMissResponse">Your reasoning</label><textarea class="textarea short" id="nearMissResponse" placeholder="What condition does the familiar pattern need? Does this case satisfy it?"></textarea></div>
+            <div class="review-back" id="nearMissFeedback" hidden></div>
+          </section>
+          <div id="visibleHint" class="review-front" hidden></div>
+          <div id="hintBack" class="review-back" hidden></div>
+          <div class="field" style="margin-top: 14px">
+            <div class="label-row"><label for="nextMove">What will you try next?</label><span class="field-help">Required before another cue</span></div>
+            <textarea class="textarea short" id="nextMove" placeholder="State the next step you will test…"></textarea>
+          </div>
+          <div class="review-actions">
+            <button class="button button-primary" id="requestHintButton" type="button">Show one cue</button>
+            <span class="review-progress" id="hintProgress" role="status" aria-live="polite">No cues shown</span>
+          </div>
+          <div class="form-block" style="padding-right: 0; padding-left: 0; margin-top: 16px">
+            <div class="section-heading"><div><h3>Attempt history</h3><p>Correctness and independent reasoning are tracked separately.</p></div></div>
+            <div id="learnerAttemptSummary" class="attempt-history"></div>
+          </div>
+          <div class="graph-insight" id="transferSummary">No unseen-problem evidence recorded yet.</div>
+          <p class="field-hint">Learner mode hides the analysis during practice. This is a display gate, not password-protected storage.</p>
+        </section>
+
+        <div id="coachPanel" hidden>
         <div class="analysis-intro">
-          <p>Build a useful, evidence-labeled map—not an imagined exhaustive transcript of an expert’s thoughts. Keep the learner’s attempt separate from simulated routes.</p>
+          <p>Build a useful, evidence-labeled map—not an imagined exhaustive transcript of an expert’s thoughts. Keep the learner’s attempt separate from simulated routes. Coach view is a display gate, not secure access control.</p>
         </div>
 
         <section class="analysis-section" id="model" aria-labelledby="modelHeading">
@@ -440,6 +567,29 @@
           <label class="sr-only" for="conceptGraph">Concept graph notes</label>
           <textarea class="textarea tall" id="conceptGraph" data-field="conceptGraph" placeholder="For each concept: what job does it do here, what does it depend on, and what becomes possible because of it?&#10;&#10;Example structure:&#10;prefix sums → constant-time range query → test candidate boundaries&#10;monotone predicate → binary search → first feasible answer"></textarea>
           <p class="graph-format">Useful edge types: requires · supports · alternative · conflicts with · fails when</p>
+        </section>
+
+        <section class="analysis-section" id="knowledgeGraph" aria-labelledby="knowledgeGraphHeading">
+          <div class="section-heading"><div><h3 id="knowledgeGraphHeading">Knowledge graph</h3><p>Typed nodes and edges are shared across saved problems.</p></div></div>
+          <div class="graph-form">
+            <div class="field"><label class="micro-label" for="graphNodeType">Node type</label><select class="select" id="graphNodeType"></select></div>
+            <div class="field"><label class="micro-label" for="graphNodeLabel">Concept, mistake, or recovery</label><input class="input" id="graphNodeLabel" placeholder="Use the same name to link this across problems"></div>
+            <div class="field"><label class="micro-label" for="graphNodeDescription">Description / evidence</label><input class="input" id="graphNodeDescription" placeholder="What does it explain? What evidence supports this link?"></div>
+            <div class="field"><label class="micro-label" for="graphNodeProvenance">Evidence type</label><select class="select" id="graphNodeProvenance"><option>observed</option><option selected>reconstructed</option><option>derived</option><option>hypothetical</option></select></div>
+            <div class="field"><label class="micro-label" for="graphNodeConfidence">Confidence</label><select class="select" id="graphNodeConfidence"><option>low</option><option selected>medium</option><option>high</option></select></div>
+            <div class="field"><button class="button button-small" id="addGraphNodeButton" type="button">Add or link node to this problem</button></div>
+          </div>
+          <p class="graph-warning" id="graphStatus" role="status" aria-live="polite"></p>
+          <div id="graphNodeList" class="graph-list"></div>
+          <div class="graph-form" style="margin-top: 16px">
+            <div class="field"><label class="micro-label" for="graphEdgeFrom">From node</label><select class="select" id="graphEdgeFrom"></select></div>
+            <div class="field"><label class="micro-label" for="graphEdgeRelation">Relationship</label><select class="select" id="graphEdgeRelation"></select></div>
+            <div class="field"><label class="micro-label" for="graphEdgeTo">To node</label><select class="select" id="graphEdgeTo"></select></div>
+            <div class="field"><label class="micro-label" for="graphEdgeEvidence">Evidence</label><input class="input" id="graphEdgeEvidence" placeholder="Why is this edge valid for this problem?"></div>
+            <div class="field"><button class="button button-small" id="addGraphEdgeButton" type="button">Add relationship</button></div>
+          </div>
+          <div id="graphEdgeList" class="graph-edges"></div>
+          <div id="graphInsights" class="graph-insight" aria-live="polite"></div>
         </section>
 
         <section class="analysis-section" id="routes" aria-labelledby="routesHeading">
@@ -466,6 +616,20 @@
           <textarea class="textarea" id="expertChecks" data-field="expertChecks" placeholder="Before choosing: what does brute force cost?&#10;Before coding: what does each state mean?&#10;Before submitting: which boundary or worst case is untested?&#10;After a verdict: what smallest counterexample would distinguish likely causes?"></textarea>
         </section>
 
+        <section class="analysis-section" id="hintPlan" aria-labelledby="hintPlanHeading">
+          <div class="section-heading"><div><h3 id="hintPlanHeading">Prepared hint ladder</h3><p>One cue per line. Learner view reveals them in order and records the response between cues.</p></div></div>
+          <label class="sr-only" for="hintLadder">Prepared hints</label>
+          <textarea class="textarea tall" id="hintLadder" data-field="hintLadder" placeholder="1. Restate the relevant constraint as a question.&#10;2. Ask what the simple approach costs.&#10;3. Point to one structural cue, without naming the answer.&#10;4. Ask for the missing invariant or proof step.&#10;5. Offer one pseudocode step, not a full solution."></textarea>
+          <p class="field-hint">This page releases prepared cues. It does not infer the learner’s obstacle from free text.</p>
+        </section>
+
+        <section class="analysis-section" id="counterfactual" aria-labelledby="counterfactualHeading">
+          <div class="section-heading"><div><h3 id="counterfactualHeading">Counterfactual / near-miss</h3><p>Prepare a similar case where a tempting pattern fails, then ask the learner to explain the boundary.</p></div></div>
+          <div class="field"><label class="micro-label" for="nearMissProblem">Near-miss statement or changed condition</label><textarea class="textarea short" id="nearMissProblem" data-field="nearMissProblem" placeholder="A visually similar problem, or the smallest condition change that breaks the approach"></textarea></div>
+          <div class="field" style="margin-top: 10px"><label class="micro-label" for="nearMissQuestionCoach">Question shown to the learner</label><input class="input" id="nearMissQuestionCoach" data-field="nearMissQuestion" placeholder="Why does the previous pattern fail here? What property would you test?"></div>
+          <div class="field" style="margin-top: 10px"><label class="micro-label" for="nearMissReason">Expected distinction (shown after the learner records a response)</label><textarea class="textarea short" id="nearMissReason" data-field="nearMissReason" placeholder="Name the required property and show exactly where the near-miss violates it. Mark this as derived or sourced, not as observed expert thought."></textarea></div>
+        </section>
+
         <section class="analysis-section" id="patterns" aria-labelledby="patternsHeading">
           <div class="cards-header">
             <div><h3 id="patternsHeading">Reusable pattern cards</h3><p>Keep the front as a retrieval cue; save the recovery for after an attempt.</p></div>
@@ -489,9 +653,51 @@
         </section>
 
         <div class="footer-note">This page stores its draft in this browser. Export Markdown to keep a durable copy in your notes.</div>
+        </div>
       </div>
     </section>
   </main>
+
+  <dialog class="dialog" id="libraryDialog" aria-labelledby="libraryHeading">
+    <div class="dialog-header">
+      <div><h2 id="libraryHeading">Problem library</h2><p>Each problem keeps its own attempt history, cards, and graph links.</p></div>
+      <button class="icon-button" type="button" data-close-dialog="libraryDialog" aria-label="Close problem library">×</button>
+    </div>
+    <div class="dialog-body">
+      <div class="field"><label class="sr-only" for="librarySearch">Search problem library</label><input class="input" id="librarySearch" placeholder="Search by title, platform, ID, or topic"></div>
+      <div class="dialog-list" id="libraryList"></div>
+      <div class="review-actions"><button class="button button-primary" id="libraryNewProblemButton" type="button">Create problem</button><span class="review-progress" id="libraryStatus" role="status" aria-live="polite"></span></div>
+    </div>
+  </dialog>
+
+  <dialog class="dialog" id="reviewDialog" aria-labelledby="reviewHeading">
+    <div class="dialog-header">
+      <div><h2 id="reviewHeading">Review today</h2><p id="reviewContext">Retrieve the cue before looking at the recovery.</p></div>
+      <button class="icon-button" type="button" data-close-dialog="reviewDialog" aria-label="Close review">×</button>
+    </div>
+    <div class="dialog-body">
+      <p class="review-progress" id="reviewProgress">No due cards.</p>
+      <div id="reviewCard" hidden>
+        <p class="micro-label" id="reviewProblemName"></p>
+        <div class="review-front" id="reviewFront"></div>
+        <div class="field"><label for="reviewRecall">Your recall attempt</label><textarea class="textarea short" id="reviewRecall" placeholder="Write the pattern, why it applies, or what you remember. If you do not recall it, say that."></textarea></div>
+        <div class="review-actions">
+          <button class="button" id="revealRecoveryButton" type="button">Show recovery</button>
+          <span class="review-progress">Reveal is required before rating.</span>
+        </div>
+        <div class="review-back" id="reviewBack" hidden></div>
+        <div class="review-actions" id="reviewRatingControls" hidden>
+          <label for="reviewQuality" class="field-label">Recall quality</label>
+          <select class="select" id="reviewQuality" style="width: auto; min-width: 210px">
+            <option value="" disabled selected>Choose a rating…</option><option value="5">5 · clear, easy recall</option><option value="4">4 · correct, slight hesitation</option><option value="3">3 · correct, effortful</option><option value="2">2 · partial / needed a hint</option><option value="1">1 · mostly missed</option><option value="0">0 · no recall</option>
+          </select>
+          <label for="reviewMode" class="field-label">Mode</label><select class="select" id="reviewMode" style="width: auto; min-width: 110px"><option>Untimed</option><option>Timed</option></select>
+          <button class="button button-primary" id="saveReviewButton" type="button">Save review</button>
+        </div>
+      </div>
+      <div class="empty-state" id="reviewEmpty">No cards are due. Queue a card from coach view or come back on its review date.</div>
+    </div>
+  </dialog>
 
   <template id="patternTemplate">
     <article class="pattern-entry" data-pattern-entry>
@@ -506,296 +712,14 @@
         <div><label class="micro-label" data-label="recovery">Back · reasoning &amp; recovery</label><textarea class="textarea" data-card-field="recovery" placeholder="Why it applies, early warning, proof/check, and recovery."></textarea></div>
       </div>
       <div class="review-line">
-        <div class="field">
-          <label class="micro-label" data-label="quality">Retrieval quality (0–5)</label>
-          <select class="select" data-card-field="quality">
-            <option value="" disabled selected>Choose a rating…</option>
-            <option value="5">5 · clear, easy recall</option>
-            <option value="4">4 · correct, slight hesitation</option>
-            <option value="3">3 · correct, effortful</option>
-            <option value="2">2 · partial / needed a hint</option>
-            <option value="1">1 · mostly missed</option>
-            <option value="0">0 · no recall</option>
-          </select>
-        </div>
-        <button class="button button-small" type="button" data-rate-card>Rate &amp; schedule</button>
-        <span class="tag tag-neutral" data-review-mode>Untimed</span>
-        <p class="schedule-meta" data-schedule-meta>New card · not scheduled</p>
-      </div>
-      <div class="review-box" aria-label="SM-2 schedule state">
-        <div><label data-label="repetitions">Repetitions</label><input class="input" type="number" min="0" value="0" data-card-field="repetitions"></div>
-        <div><label data-label="interval">Interval days</label><input class="input" type="number" min="0" value="0" data-card-field="interval"></div>
-        <div><label data-label="ease">Ease factor</label><input class="input" type="number" min="1.3" step="0.01" value="2.5" data-card-field="ease"></div>
+        <button class="button button-small" type="button" data-queue-card>Queue for review</button>
+        <span class="tag tag-neutral" data-review-mode>Not queued</span>
+        <p class="schedule-meta" data-schedule-meta>Reviews are rated only from Review Today after a recall attempt.</p>
       </div>
     </article>
   </template>
 
-  <script>
-    (() => {
-      const STORAGE_KEY = "cp-reasoning-workspace-v1";
-      const fieldNodes = [...document.querySelectorAll("[data-field]")];
-      const patternList = document.getElementById("patternList");
-      const patternTemplate = document.getElementById("patternTemplate");
-      const saveStatus = document.getElementById("saveStatus");
-      const saveDot = document.getElementById("saveDot");
-      let saveTimer;
-
-      function currentDateString(date) {
-        const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-        return local.toISOString().slice(0, 10);
-      }
-
-      function readCard(entry) {
-        const value = (name) => entry.querySelector(`[data-card-field="${name}"]`)?.value ?? "";
-        return {
-          name: value("name"),
-          trigger: value("trigger"),
-          recovery: value("recovery"),
-          quality: value("quality"),
-          repetitions: Number(value("repetitions") || 0),
-          interval: Number(value("interval") || 0),
-          ease: Number(value("ease") || 2.5),
-          nextReview: entry.dataset.nextReview || "",
-          lastQuality: entry.dataset.lastQuality || "",
-          mode: entry.dataset.mode || "Untimed"
-        };
-      }
-
-      function setCardField(entry, name, value) {
-        const node = entry.querySelector(`[data-card-field="${name}"]`);
-        if (node && value !== undefined && value !== null) node.value = value;
-      }
-
-      function updateScheduleText(entry) {
-        const repetitions = Number(entry.querySelector('[data-card-field="repetitions"]').value || 0);
-        const interval = Number(entry.querySelector('[data-card-field="interval"]').value || 0);
-        const ease = Number(entry.querySelector('[data-card-field="ease"]').value || 2.5);
-        const meta = entry.querySelector("[data-schedule-meta]");
-        const mode = entry.querySelector("[data-review-mode]");
-        const due = entry.dataset.nextReview;
-        mode.textContent = entry.dataset.mode || "Untimed";
-        meta.textContent = due
-          ? `Next review ${due} · ${interval} day${interval === 1 ? "" : "s"} · EF ${ease.toFixed(2)} · ${repetitions} success${repetitions === 1 ? "" : "es"}`
-          : "New card · not scheduled";
-      }
-
-      function addPattern(data = {}) {
-        const fragment = patternTemplate.content.cloneNode(true);
-        const entry = fragment.querySelector("[data-pattern-entry]");
-        entry.dataset.nextReview = data.nextReview || "";
-        entry.dataset.lastQuality = data.lastQuality ?? "";
-        entry.dataset.mode = data.mode || "Untimed";
-        for (const name of ["name", "trigger", "recovery", "quality", "repetitions", "interval", "ease"]) {
-          setCardField(entry, name, data[name]);
-        }
-        const index = patternList.children.length + 1;
-        entry.querySelector('[data-label="name"]').htmlFor = `patternName${index}`;
-        entry.querySelector('[data-card-field="name"]').id = `patternName${index}`;
-        entry.querySelector('[data-label="trigger"]').htmlFor = `patternTrigger${index}`;
-        entry.querySelector('[data-card-field="trigger"]').id = `patternTrigger${index}`;
-        entry.querySelector('[data-label="recovery"]').htmlFor = `patternRecovery${index}`;
-        entry.querySelector('[data-card-field="recovery"]').id = `patternRecovery${index}`;
-        entry.querySelector('[data-label="quality"]').htmlFor = `patternQuality${index}`;
-        entry.querySelector('[data-card-field="quality"]').id = `patternQuality${index}`;
-        for (const name of ["repetitions", "interval", "ease"]) {
-          const node = entry.querySelector(`[data-card-field="${name}"]`);
-          node.id = `pattern${name}${index}`;
-          entry.querySelector(`[data-label="${name}"]`).htmlFor = node.id;
-        }
-        entry.querySelector("[data-remove-card]").addEventListener("click", () => {
-          entry.remove();
-          scheduleSave();
-        });
-        entry.querySelector("[data-rate-card]").addEventListener("click", () => rateCard(entry));
-        entry.addEventListener("input", scheduleSave);
-        entry.addEventListener("change", scheduleSave);
-        patternList.append(entry);
-        updateScheduleText(entry);
-        return entry;
-      }
-
-      function rateCard(entry) {
-        const qualityValue = entry.querySelector('[data-card-field="quality"]').value;
-        if (qualityValue === "") {
-          entry.querySelector("[data-schedule-meta]").textContent = "Choose a retrieval rating before scheduling.";
-          entry.querySelector('[data-card-field="quality"]').focus();
-          return;
-        }
-        const quality = Number(qualityValue);
-        const repetitionsNode = entry.querySelector('[data-card-field="repetitions"]');
-        const intervalNode = entry.querySelector('[data-card-field="interval"]');
-        const easeNode = entry.querySelector('[data-card-field="ease"]');
-        let repetitions = Number(repetitionsNode.value || 0);
-        let interval = Number(intervalNode.value || 0);
-        let ease = Number(easeNode.value || 2.5);
-        const miss = 5 - quality;
-        ease = Math.max(1.3, ease + 0.1 - miss * (0.08 + miss * 0.02));
-
-        if (quality < 3) {
-          repetitions = 0;
-          interval = 1;
-        } else {
-          repetitions += 1;
-          interval = repetitions === 1 ? 1 : repetitions === 2 ? 6 : Math.round(interval * ease);
-        }
-
-        const next = new Date();
-        next.setDate(next.getDate() + interval);
-        repetitionsNode.value = String(repetitions);
-        intervalNode.value = String(interval);
-        easeNode.value = ease.toFixed(2);
-        entry.dataset.nextReview = currentDateString(next);
-        entry.dataset.lastQuality = String(quality);
-        entry.dataset.mode = document.getElementById("transferMode").value;
-        updateScheduleText(entry);
-        scheduleSave();
-      }
-
-      function readState() {
-        const fields = Object.fromEntries(fieldNodes.map((node) => [node.dataset.field, node.value]));
-        return { version: 1, updatedAt: new Date().toISOString(), fields, patterns: [...patternList.children].map(readCard) };
-      }
-
-      function saveNow() {
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(readState()));
-          saveStatus.textContent = "Saved in this browser";
-          saveDot.style.background = "#4d9a7e";
-        } catch {
-          saveStatus.textContent = "Could not save locally";
-          saveDot.style.background = "#b56d31";
-        }
-      }
-
-      function scheduleSave() {
-        saveStatus.textContent = "Saving…";
-        saveDot.style.background = "#c18a36";
-        clearTimeout(saveTimer);
-        saveTimer = setTimeout(saveNow, 320);
-      }
-
-      function loadState() {
-        let state;
-        try { state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"); }
-        catch { state = null; }
-        if (!state || state.version !== 1) return;
-        for (const node of fieldNodes) {
-          if (Object.hasOwn(state.fields || {}, node.dataset.field)) node.value = state.fields[node.dataset.field];
-        }
-        for (const card of state.patterns || []) addPattern(card);
-      }
-
-      function markdownEscape(text) {
-        return String(text || "").trim();
-      }
-
-      function makeMarkdown() {
-        const state = readState();
-        const f = state.fields;
-        const title = f.problemTitle || "Untitled problem";
-        const sections = [
-          `# ${title}`,
-          [f.platform, f.problemId, f.difficulty && `Rating ${f.difficulty}`, f.topicTags].filter(Boolean).join(" · "),
-          f.problemUrl ? `Source: ${f.problemUrl}` : "",
-          "## Problem statement",
-          markdownEscape(f.problemText),
-          "## Learner attempt",
-          markdownEscape(f.attemptNotes),
-          "## Problem model",
-          `**Goal:** ${markdownEscape(f.goal) || "—"}`,
-          `**Constraints:** ${markdownEscape(f.constraints) || "—"}`,
-          `**Baseline:** ${markdownEscape(f.baseline) || "—"}`,
-          "## Concepts and dependencies",
-          markdownEscape(f.conceptGraph),
-          "## Solver routes",
-          markdownEscape(f.solverRoutes),
-          "## Failure and recovery map",
-          markdownEscape(f.failureMap),
-          "## Why this construction",
-          markdownEscape(f.constructionReason),
-          "## Second-nature checks",
-          markdownEscape(f.expertChecks),
-          "## Pattern cards",
-          ...(state.patterns.length ? state.patterns.flatMap((card) => [
-            `### ${card.name || "Untitled pattern"}`,
-            `**Front / trigger:** ${markdownEscape(card.trigger) || "—"}`,
-            `**Back / recovery:** ${markdownEscape(card.recovery) || "—"}`,
-            `**SM-2:** repetitions ${card.repetitions}, interval ${card.interval} days, ease ${Number(card.ease).toFixed(2)}, next review ${card.nextReview || "not scheduled"}, last quality ${card.lastQuality || "not rated"}`
-          ]) : ["No cards yet."]),
-          "## Transfer evidence",
-          `**Problem:** ${markdownEscape(f.transferProblem) || "—"}`,
-          `**Mode:** ${markdownEscape(f.transferMode) || "—"} · **Hint level:** ${f.hintLevel || 0}`,
-          markdownEscape(f.transferNotes),
-          "",
-          `---\nSaved from CP Reasoning Workspace on ${new Date().toLocaleDateString()}.`
-        ].filter((part) => part !== undefined);
-        return sections.join("\n\n");
-      }
-
-      function filenameSlug(value) {
-        return (value || "cp-problem-analysis").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 64) || "cp-problem-analysis";
-      }
-
-      function download(name, contents, type) {
-        const blob = new Blob([contents], { type });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = name;
-        document.body.append(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      }
-
-      function makeAnalysisPrompt() {
-        const state = readState();
-        const f = state.fields;
-        return `Create a coach-side competitive-programming problem analysis from the material below. Do not show the full analysis to the learner during their attempt. Do not claim to know an expert's private thoughts or enumerate every possible failure. Separate observed facts, derived conclusions, reconstructions, and hypothetical branches; state confidence and cite source URLs when available. Cover concepts and dependencies, a successful first-principles route, distinct plausible alternatives and where they fail, realistic failure/recovery branches, why the accepted construction fits, second-nature checks, and only reusable pattern cards. Do not claim a learner made an error unless the attempt notes show it.\n\n## Metadata\nTitle: ${f.problemTitle || "Unknown"}\nPlatform / ID: ${[f.platform, f.problemId].filter(Boolean).join(" / ") || "Unknown"}\nDifficulty: ${f.difficulty || "Unknown"}\nTags: ${f.topicTags || "Unknown"}\nSource: ${f.problemUrl || "Not supplied"}\n\n## Problem statement\n${f.problemText || "Not supplied"}\n\n## Learner attempt shared so far\n${f.attemptNotes || "No attempt notes supplied"}\n\n## Current problem model\nGoal: ${f.goal || "Not supplied"}\nConstraints: ${f.constraints || "Not supplied"}\nBaseline: ${f.baseline || "Not supplied"}\n\nReturn a structured Markdown record. Mark unknowns instead of inventing details. Prefer official statements/editorials and verify constraints and complexity before presenting conclusions.`;
-      }
-
-      async function copyAnalysisPrompt() {
-        const prompt = makeAnalysisPrompt();
-        try {
-          await navigator.clipboard.writeText(prompt);
-          saveStatus.textContent = "Analysis prompt copied";
-          setTimeout(() => { saveStatus.textContent = "Saved in this browser"; }, 1800);
-        } catch {
-          const helper = document.createElement("textarea");
-          helper.value = prompt;
-          helper.setAttribute("readonly", "");
-          helper.style.position = "fixed";
-          helper.style.opacity = "0";
-          document.body.append(helper);
-          helper.select();
-          const copied = document.execCommand("copy");
-          helper.remove();
-          saveStatus.textContent = copied ? "Analysis prompt copied" : "Clipboard unavailable";
-          setTimeout(() => { saveStatus.textContent = "Saved in this browser"; }, 1800);
-        }
-      }
-
-      fieldNodes.forEach((node) => {
-        node.addEventListener("input", scheduleSave);
-        node.addEventListener("change", scheduleSave);
-      });
-      window.addEventListener("pagehide", saveNow);
-      document.getElementById("addPatternButton").addEventListener("click", () => {
-        const card = addPattern();
-        card.querySelector('[data-card-field="name"]').focus();
-        scheduleSave();
-      });
-      document.getElementById("copyPromptButton").addEventListener("click", copyAnalysisPrompt);
-      document.getElementById("exportButton").addEventListener("click", () => {
-        const title = document.getElementById("problemTitle").value;
-        download(`${filenameSlug(title)}.md`, makeMarkdown(), "text/markdown;charset=utf-8");
-      });
-
-      loadState();
-      if (patternList.children.length === 0) addPattern();
-      updateScheduleText([...patternList.children][0]);
-      saveNow();
-    })();
-  </script>
+  <script src="./cp-workspace-core.js" defer></script>
+  <script src="./cp-workspace.js" defer></script>
 </body>
 </html>

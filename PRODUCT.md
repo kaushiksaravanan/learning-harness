@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-Single-file HTML/CSS/JavaScript, matching the requested HTML page. No framework or service was requested.
+Static HTML/CSS/JavaScript assets in one single-page interface. No framework or service was requested.
 
 ## Users
 
@@ -24,7 +24,10 @@ The learner uses the page during competitive-programming study. The analysis inc
 
 ## Capabilities and Constraints
 
-- The current page autosaves in browser-local storage, exports Markdown, and copies a structured analysis prompt for use with an external AI session.
+- The page maintains multiple problem records, attempt events, a shared typed graph, pattern cards, a due review queue, transfer measures, counterfactual prompts, and JSON backup/import.
+- Autosave uses IndexedDB when available and falls back to browser-local storage. The page also exports per-problem Markdown and copies a structured analysis prompt for use with an external AI session.
+- A coach-view display gate requires a saved learner attempt first. This is a study friction, not security: the data remains in the browser profile and is not encrypted.
+- Transfer dimensions and feedback sources are entered by the learner or coach. The page does not independently verify proofs or diagnose free text.
 - It does not call an AI model, sync with a notes app, or watch code in an editor.
 - Generated reasoning remains subject to source checking and provenance labels; the page does not claim an exhaustive failure graph.
 - The autosave behavior is an implementation choice, not a guarantee of backup or cross-device sync.

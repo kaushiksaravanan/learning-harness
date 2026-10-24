@@ -21,7 +21,7 @@ This is a personal system I built for myself, shared as-is. Built as a pi config
 This repo **is** a `.pi` directory. From your learning project's root:
 
 ```bash
-git clone https://github.com/amosblomqvist/learn .pi
+git clone https://github.com/kaushiksaravanan/learning-harness .pi
 ```
 
 Then open pi in that directory. (Or copy the pieces you want into your existing project config.)
@@ -40,6 +40,16 @@ The teaching skill is written for one learner (me). Edit the skill to fit how yo
 
 ## Open the CP workspace
 
-Open [`cp-workspace.html`](cp-workspace.html) in a browser. It is one self-contained page: enter the problem and your attempt on the left; build the concept map, solver routes, failure/recovery analysis, pattern cards, and transfer notes in the scrollable right pane. Drafts autosave in that browser. Use **Export Markdown** to keep a portable copy, or **Copy analysis prompt** to use an external AI session; the page itself has no model/API connection.
+Open [`cp-workspace.html`](cp-workspace.html) in a browser and keep the two JavaScript files beside it. It is one single-page workspace: the left pane holds the problem and learner attempt; the right pane contains the coach analysis, shown after an attempt is recorded. The local problem library keeps separate attempt histories, a shared typed knowledge graph, pattern cards, and a due-review queue. It autosaves on this device and supports a full JSON backup/import plus per-problem Markdown export.
+
+The prepared hint ladder releases one cue at a time after the learner records what they tried. It does not classify free-text attempts or connect to an AI model; **Copy analysis prompt** is the handoff to an external session. Reasoning dimensions and feedback sources are recorded as user-entered evidence, so self-ratings are not treated as verified proof. Browser storage is not a backup; export the JSON library regularly.
 
 The `cp-problem-analyst` Pi agent can draft sourced, provenance-labeled analyses when the subagent extension is available. Verify its solution claims before using them. The repo still does not include a large vetted problem library or live code-editor monitoring. The Markdown dashboard, analysis, and card templates are optional export/reference formats, not another required interface.
+
+## Run the checks
+
+```bash
+node --test tests/*.test.cjs
+```
+
+The suite uses Node 22. The browser workflow test runs when Chromium is available; set `CHROME_PATH` to its executable if it is not on a standard path. CI requires Chromium for that test.
