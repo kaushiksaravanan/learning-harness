@@ -46,6 +46,12 @@ The prepared hint ladder releases one cue at a time after the learner records wh
 
 The `cp-problem-analyst` Pi agent can draft sourced, provenance-labeled analyses when the subagent extension is available. Verify its solution claims before using them. The repo still does not include a large vetted problem library or live code-editor monitoring. The Markdown dashboard, analysis, and card templates are optional export/reference formats, not another required interface.
 
+## OpenCode commit journal
+
+When OpenCode runs from this repository, it automatically loads `.opencode/plugins/auto-commit-journal.js`. Restart OpenCode after adding the plugin. It creates a Git commit for each reported file edit, each incoming user message, and each completed assistant message (including tool handoffs). Message-only checkpoints create empty commits so they also have a hash. The hook writes the hash, changed paths and Git summary, event, session/message IDs, and available prompt/response context to `.opencode/commit-journal.local.md`; Git ignores that local journal.
+
+The hook requires Git. It will not commit a file that was already dirty when the plugin started, and it skips automatic commits while the index contains staged work. Those skips are recorded in the local journal so unrelated work is not silently mixed into a checkpoint. File-edit commits include the latest user prompt when OpenCode exposes it; the hook does not generate an independent semantic code review.
+
 ## Run the checks
 
 ```bash
