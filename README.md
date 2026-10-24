@@ -8,7 +8,7 @@ This is a personal system I built for myself, shared as-is. Built as a pi config
 
 ## What's in it
 
-- `skills/teach/` — competitive-programming coaching with per-problem reasoning datasets, expert solution traces, reconstructed learning routes, failure-and-recovery graphs, pattern cards, timed/untimed tracking, problem indexes, fading hints, and teacher-guided SM-2 reviews in a linked learner note; includes a reusable problem-analysis template
+- `skills/teach/` — competitive-programming coaching with a six-stage per-problem reasoning dataset, multi-path solver simulations, failure-and-recovery graphs, second-nature checks, pattern cards, timed/untimed tracking, problem indexes, fading hints, and teacher-guided SM-2 reviews in a linked learner note; includes a reusable problem-analysis template
 - `skills/visualize/` — adds a correct, minimal diagram to a lesson when an idea is clearer as a picture
 - `extensions/ask-user-question/` — the agent asks you questions through a UI popup
 - `extensions/quiz/` — graded questions with instant feedback (✓/✗, correct answer, explanation)

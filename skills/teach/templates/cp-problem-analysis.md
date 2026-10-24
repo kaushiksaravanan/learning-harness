@@ -7,6 +7,7 @@
 - Problem link / platform ID:
 - Contest, rating, or estimated difficulty:
 - Topic tags:
+- Target learner rating / assessed background:
 - Language, if implementation is included:
 - Mode: timed / untimed
 - Attempt time and judge result, if known:
@@ -22,23 +23,31 @@
 
 ## Concept and dependency graph
 
-| Node | Concept / invariant / data structure | Why this problem needs it | Prerequisites |
-|---|---|---|---|
-| C1 | | | |
+| Node | Concept / invariant / data structure | Why this problem needs it | Prerequisites | Target-level status: second-nature / conscious / unknown |
+|---|---|---|---|---|
+| C1 | | | | |
 
 | From | Relation (`requires`, `supports`, `alternative`, `conflicts`, `fails when`) | To | Evidence / reason |
 |---|---|---|---|
 | | | | |
 
-## Candidate solution routes
+## Multi-path solver simulations
 
-Include a baseline, a tempting alternative, and the successful route when these are meaningfully distinct. Record other valid solutions when they teach a useful trade-off.
+Treat these as simulated perspectives, not real people or observed expert memories. Fill routes that reveal distinct reasoning; mark the others not applicable rather than inventing a path.
+
+| Solver lens | Initial hypothesis | Attempts, checks, and decisions | Where stuck / wrong conclusion / missing knowledge | Recovery or outcome | Status / evidence |
+|---|---|---|---|---|---|
+| Strong, clean route | | | | | |
+| Intermediate, obvious baseline | | | | | |
+| Plausible wrong approach | | | | | |
+| Careful but over-engineering | | | | | |
+| Fast but implementation-careless | | | | | |
+
+Add any materially different valid route or first-principles derivation:
 
 | Route | Starting observation and reasoning | Where it works or fails, and why | Complexity / trade-off | Status and evidence |
 |---|---|---|---|---|
-| Baseline / brute force | | | | |
-| Tempting alternative | | | | |
-| Successful route | | | | |
+| | | | | |
 
 ## Successful solver trace
 
@@ -50,11 +59,11 @@ Record decision points, including routine moves an experienced solver may do aut
 
 ## Failure and recovery graph
 
-Use one row per realistic branch. Link the branch to its trigger, cause, earliest warning, test or prevention, recovery, and related prior problems. Mark learner errors as actual, near-miss, or hypothetical.
+Use one row per realistic branch. Record when it appears in the solve, why it is tempting, how a strong solver would detect it, and how they would recover. Link to prior problems. Mark learner errors as actual, near-miss, or hypothetical.
 
-| ID | Trigger / decision point | Mistaken assumption or action | Why plausible; likely symptom or verdict | Earliest warning / discriminating test | Recovery move | Prior problem/card | Provenance and confidence |
-|---|---|---|---|---|---|---|---|
-| F1 | | | | | | | |
+| ID | Solve phase | Trigger / decision point | Mistake and why plausible | Symptom / verdict | Expert's early detection or check | Prevention / recovery | Prior problem/card | Provenance and confidence |
+|---|---|---|---|---|---|---|---|---|
+| F1 | | | | | | | | |
 
 Check relevant categories:
 
@@ -73,6 +82,33 @@ Check relevant categories:
 - After a verdict: What smallest counterexample or resource bottleneck distinguishes the likely causes?
 
 Add problem-specific checks and the quick paper test an experienced solver might use automatically.
+
+## Why this construction?
+
+- Core bottleneck / key observation:
+- Which constraints force the chosen algorithm or data structure:
+- Which design choices are optional:
+- Why each accepted-solution component is present:
+- Plausible alternative constructions and exactly where they fail (correctness, limits, or only efficiency):
+- Time/memory trade-offs and accepted alternatives:
+
+## Second-nature layer
+
+| Cue | Automatic expert check or routine | Why it is safe/useful | How to prompt the learner to retrieve it | Evidence / target level |
+|---|---|---|---|---|
+| | | | | |
+
+## Complete learning graph
+
+Nodes can represent concepts, hypotheses/decisions, intermediate states, solution components, failure modes, checks, and recovery moves.
+
+| Node ID | Type | Short description | Evidence / confidence |
+|---|---|---|---|
+| | concept / decision / state / solution / failure / check / recovery | | |
+
+| From | Edge (`requires`, `leads to`, `blocks`, `is detected by`, `recovers from`, `implements`, `was learned from`) | To | Evidence / explanation |
+|---|---|---|---|
+| | | | |
 
 ## Learner attempt and teaching use
 
