@@ -20,7 +20,7 @@ const chromePath = candidates.find((candidate) => fs.existsSync(candidate));
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-test("browser flow gates coach analysis, records problems, and completes a spaced review", {
+test("browser flow prepares hints before a cold attempt, measures learning, imports safely, and reviews cards", {
   skip: !chromePath && !process.env.CI ? "Set CHROME_PATH to run the headless browser workflow test" : false
 }, async (t) => {
   if (!chromePath) throw new Error("Chromium is required in CI; set CHROME_PATH to its executable.");
@@ -135,12 +135,32 @@ test("browser flow gates coach analysis, records problems, and completes a space
   assert.equal(await evaluate("document.body.dataset.view"), "learner");
   assert.equal(await evaluate("document.getElementById('sectionNav').hidden"), true);
   await evaluate("document.getElementById('modeToggle').click()");
-  assert.equal(await evaluate("document.body.dataset.view"), "learner", "coach analysis stays gated until an attempt is saved");
-
-  const firstNotes = "I tried sorting and checking adjacent pairs, then tested a duplicate case.";
-  await evaluate(`(() => { const input = document.getElementById('attemptNotes'); input.value = ${JSON.stringify(firstNotes)}; input.dispatchEvent(new Event('input', { bubbles: true })); document.getElementById('recordAttemptButton').click(); })()`);
-  await until("document.getElementById('attemptHistory').textContent.includes('Unsolved')", "first attempt record");
+  await until("document.body.dataset.view === 'coach'", "coach preparation view before an attempt");
+  await evaluate(`(() => {
+    const input = document.getElementById('hintLadder');
+    input.value = 'Check whether feasibility is monotone.\\nEstimate the direct approach cost.';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  })()`);
   await evaluate("document.getElementById('modeToggle').click()");
+  await until("document.body.dataset.view === 'learner'", "return to learner view with prepared cues");
+
+  const firstNotes = "I assumed the predicate was monotone without proving it, then tried sorting and checking adjacent pairs.";
+  await evaluate(`(() => {
+    document.querySelector('[data-field="platform"]').value = 'Codeforces';
+    document.querySelector('[data-field="problemId"]').value = '1872A';
+    const input = document.getElementById('attemptNotes');
+    input.value = ${JSON.stringify(firstNotes)};
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('attemptUnseen').checked = true;
+    document.getElementById('requestHintButton').click();
+  })()`);
+  await until("!document.getElementById('visibleHint').hidden", "first timestamped cue");
+  assert.match(await evaluate("document.getElementById('hintExposureStatus').textContent"), /1 timestamped cue event/);
+  await evaluate("document.getElementById('recordAttemptButton').click()");
+  await until("document.getElementById('attemptHistory').textContent.includes('Unsolved')", "first attempt record");
+  assert.match(await evaluate("document.getElementById('attemptHistory').textContent"), /1 cue recorded/);
+  await evaluate("document.getElementById('modeToggle').click()");
+  await until("document.body.dataset.view === 'coach'", "coach analysis after attempt");
   assert.equal(await evaluate("document.body.dataset.view"), "coach");
   assert.equal(await evaluate("document.getElementById('coachPanel').hidden"), false);
 
@@ -148,10 +168,23 @@ test("browser flow gates coach analysis, records problems, and completes a space
   await until("document.getElementById('libraryCount').textContent === '2'", "second problem creation");
   assert.equal(await evaluate("document.body.dataset.view"), "learner", "a new problem returns to the cold-attempt view");
 
-  const secondNotes = "I estimated the direct simulation cost and wrote down the invariant to test.";
-  await evaluate(`(() => { const input = document.getElementById('attemptNotes'); input.value = ${JSON.stringify(secondNotes)}; input.dispatchEvent(new Event('input', { bubbles: true })); document.getElementById('recordAttemptButton').click(); })()`);
+  const secondNotes = "I again assumed the predicate was monotone without proving it, then estimated the direct simulation cost.";
+  await evaluate(`(() => {
+    document.querySelector('[data-field="platform"]').value = 'Codeforces';
+    document.querySelector('[data-field="problemId"]').value = '1872B';
+    const input = document.getElementById('attemptNotes');
+    input.value = ${JSON.stringify(secondNotes)};
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('attemptUnseen').checked = true;
+    document.getElementById('recordAttemptButton').click();
+  })()`);
   await until("document.getElementById('attemptHistory').textContent.includes('Unsolved')", "second attempt record");
+  assert.match(await evaluate("document.getElementById('transferSummary').textContent"), /2 unique first-seen unseen problems/);
   await evaluate("document.getElementById('modeToggle').click()");
+  await until("document.body.dataset.view === 'coach'", "coach diagnosis view");
+  assert.match(await evaluate("document.getElementById('graphInsights').textContent"), /precondition was assumed instead of checked/);
+  await evaluate(`(() => { const button = [...document.querySelectorAll('#graphInsights button')].find((item) => item.textContent.includes('Confirm & link')); button.click(); })()`);
+  await until("document.getElementById('graphNodeList').textContent.includes('An algorithm precondition was assumed instead of checked')", "confirmed automatic diagnosis in the shared graph");
   await evaluate(`(() => {
     const values = { nearMissProblem: 'A predicate is true in the middle and false at both ends.', nearMissQuestionCoach: 'Why is binary search on this predicate unsafe?', nearMissReason: 'Feasibility is not monotone, so binary search can discard the only valid region.' };
     for (const [id, value] of Object.entries(values)) {
@@ -162,15 +195,23 @@ test("browser flow gates coach analysis, records problems, and completes a space
   })()`);
   await wait(400);
   await evaluate("document.getElementById('modeToggle').click()");
+  await until("document.body.dataset.view === 'learner'", "return to learner near-miss check");
   assert.equal(await evaluate("document.getElementById('nearMissPractice').hidden"), false);
   await evaluate(`(() => {
-    document.getElementById('nearMissResponse').value = 'The true values are not a prefix or suffix, so monotonicity fails.';
+    document.getElementById('nearMissResponse').value = 'This time I checked whether feasibility is monotone before choosing binary search. The true values are not a prefix or suffix.';
     document.getElementById('distinguishedNearMiss').checked = true;
     document.getElementById('recordAttemptButton').click();
   })()`);
   await until("!document.getElementById('nearMissFeedback').hidden", "contrastive response feedback");
   assert.match(await evaluate("document.getElementById('nearMissFeedback').textContent"), /Feasibility is not monotone/);
   await evaluate("document.getElementById('modeToggle').click()");
+  await until("document.body.dataset.view === 'coach'", "coach recovery diagnosis view");
+  assert.match(await evaluate("document.getElementById('graphInsights').textContent"), /Possible later recovery signals/);
+  assert.equal(await evaluate("[...document.querySelectorAll('#graphInsights button')].some((item) => item.textContent === 'Confirm recovery link')"), true, await evaluate("document.getElementById('graphInsights').textContent"));
+  await evaluate(`(() => { const button = [...document.querySelectorAll('#graphInsights button')].find((item) => item.textContent === 'Confirm recovery link'); button.click(); })()`);
+  await until("document.getElementById('graphEdgeList').textContent.includes('recovers from')", "confirmed recovery edge");
+  await evaluate("document.getElementById('modeToggle').click()");
+  await until("document.body.dataset.view === 'learner'", "return to learner after recovery review");
   await evaluate("document.getElementById('addPatternButton').click()");
   await until("!!document.querySelector('[data-pattern-entry] input[data-card-field=\\\"name\\\"]')", "pattern card editor");
   await evaluate(`(() => {
@@ -189,5 +230,33 @@ test("browser flow gates coach analysis, records problems, and completes a space
   await evaluate(`(() => { document.getElementById('reviewRecall').value = 'I would prove the invariant before trusting the greedy step.'; document.getElementById('revealRecoveryButton').click(); document.getElementById('reviewQuality').value = '4'; document.getElementById('saveReviewButton').click(); })()`);
   await until("document.getElementById('reviewProgress').textContent.includes('Completed 1 due review')", "review event and next interval");
   assert.equal(await evaluate("document.getElementById('dueCount').textContent"), "0");
+
+  await evaluate(`(() => {
+    const notes = document.getElementById('attemptNotes');
+    notes.value = 'This pending autosave must be replaced by the selected backup.';
+    notes.dispatchEvent(new Event('input', { bubbles: true }));
+    const backup = {
+      version: 3,
+      activeProblemId: 'imported-problem',
+      problems: [{
+        id: 'imported-problem',
+        fields: { problemTitle: 'Imported library', platform: 'AtCoder', problemId: 'abc999_a', problemText: 'Restored statement.' },
+        attempts: [], cards: [], hintEvents: []
+      }],
+      graph: { nodes: [], edges: [] },
+      reviewEvents: []
+    };
+    window.confirm = () => true;
+    const file = new File([JSON.stringify(backup)], 'backup.json', { type: 'application/json' });
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    const input = document.getElementById('importFile');
+    input.files = transfer.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  await until("document.getElementById('libraryStatus').textContent === 'Backup restored.'", "serialized backup replacement");
+  await wait(350);
+  assert.equal(await evaluate("document.querySelector('[data-field=\"problemTitle\"]').value"), "Imported library");
+  assert.equal(await evaluate("document.querySelector('[data-field=\"problemText\"]').value"), "Restored statement.");
   assert.deepEqual(exceptions, [], "page interactions should not throw runtime exceptions");
 });

@@ -168,17 +168,11 @@ function createCommitter(root, options = {}) {
     return { committed: true, hash, files: changed, change: stat };
   }
 
-  function commitCurrent(context = {}) {
-    const current = readStatus(absoluteRoot);
-    const paths = [...current.paths];
-    return commit(paths, context);
-  }
-
   function checkpoint(context = {}) {
     return commit([], { ...context, allowEmpty: true });
   }
 
-  return { root: absoluteRoot, journalPath, baselineDirty, commit, commitCurrent, checkpoint, appendJournal, currentHash };
+  return { root: absoluteRoot, journalPath, baselineDirty, commit, checkpoint, appendJournal, currentHash };
 }
 
 function tryGitConfig(root, key) {

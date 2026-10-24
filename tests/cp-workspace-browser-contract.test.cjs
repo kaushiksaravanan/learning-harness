@@ -30,12 +30,14 @@ test("page fields match the workspace schema and both scripts are loaded", () =>
   assert.match(html, /<script src="\.\/cp-workspace\.js" defer><\/script>/);
 });
 
-test("learner view gates coach analysis and exposes progressive retrieval controls", () => {
+test("coach can prepare analysis before attempts while learner view exposes progressive retrieval", () => {
   assert.match(html, /id="learnerPanel"/);
   assert.match(html, /id="coachPanel" hidden/);
   assert.match(html, /id="coachGateStatus"/);
-  assert.match(app, /Record a concrete first attempt/);
+  assert.match(html, /prepare the problem and hint ladder before you start/);
+  assert.doesNotMatch(app, /coachUnlocked/);
   assert.match(app, /Record next move &amp; show one cue|Record next move & show one cue/);
   assert.match(html, /id="requestHintButton"/);
   assert.match(html, /id="reviewButton"/);
+  assert.match(html, /id="hintExposureStatus"/);
 });

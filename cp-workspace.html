@@ -299,6 +299,10 @@
     .graph-edge-row { padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; color: #52615b; font-size: 11px; overflow-wrap: anywhere; }
     .graph-insight { margin-top: 12px; padding: 10px 11px; border: 1px solid #d4e4dd; border-radius: 7px; background: #f2f8f5; color: #31584e; font-size: 12px; }
     .graph-insight p { margin: 4px 0 0; }
+    .diagnosis-title { display: block; margin-top: 12px; padding-top: 10px; border-top: 1px solid #d4e4dd; }
+    .diagnosis-suggestion { display: grid; gap: 4px; margin-top: 8px; padding: 9px; border: 1px solid #d4e4dd; border-radius: 6px; background: #fff; }
+    .diagnosis-suggestion p { color: #52615b; overflow-wrap: anywhere; }
+    .diagnosis-suggestion .button { justify-self: start; margin-top: 4px; }
     .near-miss-practice { margin-top: 14px; padding: 13px; border: 1px solid #d6e4de; border-radius: 8px; background: #f7faf8; }
     .near-miss-practice .review-front { margin-bottom: 8px; white-space: pre-wrap; }
     .dialog {
@@ -470,12 +474,11 @@
               <div class="field"><label class="micro-label" for="attemptMode">Mode</label><select class="select" id="attemptMode"><option>Untimed</option><option>Timed</option></select></div>
               <div class="field"><label class="micro-label" for="attemptResult">Result</label><select class="select" id="attemptResult"><option>Unsolved</option><option>Partial</option><option>Solved</option><option>Wrong answer</option><option>Time limit</option><option>Runtime error</option></select></div>
               <div class="field"><label class="micro-label" for="attemptMinutes">Minutes</label><input class="input" id="attemptMinutes" type="number" min="0" step="1" placeholder="—"></div>
-              <div class="field"><label class="micro-label" for="attemptHintLevel">Highest cue used</label><select class="select" id="attemptHintLevel"><option value="0">0 · none</option><option value="1">1 · checkpoint</option><option value="2">2 · constraint</option><option value="3">3 · pattern cue</option><option value="4">4 · partial step</option><option value="5">5 · pseudocode</option></select></div>
               <div class="field" style="grid-column: 1 / -1"><label class="micro-label" for="attemptPattern">Pattern tested, if known</label><select class="select" id="attemptPattern"><option value="">No pattern selected</option></select></div>
             </div>
+            <p class="field-hint" id="hintExposureStatus" role="status" aria-live="polite">Unaided recognition is derived from timestamped cue events, not a manual rating.</p>
             <div class="check-grid">
-              <label class="check-label"><input type="checkbox" id="attemptUnseen"> Unseen problem / solution</label>
-              <label class="check-label"><input type="checkbox" id="approachUnaided"> Chose approach without a cue</label>
+              <label class="check-label"><input type="checkbox" id="attemptUnseen"> I had not studied this problem or its solution</label>
               <label class="check-label"><input type="checkbox" id="approachJustified"> Explained why it applies</label>
               <label class="check-label"><input type="checkbox" id="proofSound"> Proof or invariant sound</label>
               <label class="check-label"><input type="checkbox" id="implementationCorrect"> Implementation correct</label>
@@ -522,7 +525,7 @@
         <section class="analysis-section" id="learnerPanel" aria-labelledby="practiceHeading">
           <div class="section-heading"><div><h3 id="practiceHeading">Practice</h3><p>Try the problem first. Prepared cues are released one at a time.</p></div><span class="tag tag-neutral">Learner view</span></div>
           <div class="notice"><span>Write your current approach or test in the left pane before asking for a cue. After each cue, record what you will try next.</span></div>
-          <p class="field-hint" id="coachGateStatus" role="status" aria-live="polite">Record your first attempt before opening the coach analysis.</p>
+          <p class="field-hint" id="coachGateStatus" role="status" aria-live="polite">Coach view can prepare the problem and hint ladder before you start. Switch to learner view for a cold attempt.</p>
           <section class="near-miss-practice" id="nearMissPractice" hidden aria-labelledby="nearMissHeading">
             <div class="section-heading"><div><h3 id="nearMissHeading">Contrast check</h3><p>Test whether a familiar pattern applies to a similar case.</p></div></div>
             <p class="review-front" id="nearMissStatement"></p>
@@ -544,7 +547,7 @@
             <div class="section-heading"><div><h3>Attempt history</h3><p>Correctness and independent reasoning are tracked separately.</p></div></div>
             <div id="learnerAttemptSummary" class="attempt-history"></div>
           </div>
-          <div class="graph-insight" id="transferSummary">No unseen-problem evidence recorded yet.</div>
+          <div class="graph-insight" id="transferSummary">Transfer counts require an unseen claim and a unique platform/problem ID or URL.</div>
           <p class="field-hint">Learner mode hides the analysis during practice. This is a display gate, not password-protected storage.</p>
         </section>
 
@@ -643,12 +646,8 @@
         </section>
 
         <section class="analysis-section" id="transfer" aria-labelledby="transferHeading">
-          <div class="section-heading"><div><h3 id="transferHeading">Transfer evidence</h3><p>Keep recognition, proof, implementation, and speed distinct.</p></div></div>
-          <div class="grid-three">
-            <div class="field"><label class="micro-label" for="transferProblem">Unseen problem ID</label><input class="input" id="transferProblem" data-field="transferProblem" placeholder="Platform / ID"></div>
-            <div class="field"><label class="micro-label" for="transferMode">Mode</label><select class="select" id="transferMode" data-field="transferMode"><option>Untimed</option><option>Timed</option></select></div>
-            <div class="field"><label class="micro-label" for="hintLevel">Hint level</label><select class="select" id="hintLevel" data-field="hintLevel"><option value="0">0 · none</option><option value="1">1 · checkpoint</option><option value="2">2 · constraint</option><option value="3">3 · trigger</option><option value="4">4 · partial step</option><option value="5">5 · pseudocode</option></select></div>
-          </div>
+          <div class="section-heading"><div><h3 id="transferHeading">Transfer evidence</h3><p>Use the problem ID or URL on the left; repeated attempts on the same identified problem count once.</p></div></div>
+          <p class="field-hint">A transfer point requires the first saved attempt for a unique platform/problem ID or URL. “Unseen” remains a learner report; the harness deduplicates identities but cannot verify study history.</p>
           <div class="field" style="margin-top: 10px"><label class="micro-label" for="transferNotes">Evidence &amp; next test</label><textarea class="textarea short" id="transferNotes" data-field="transferNotes" placeholder="Unaided pattern recognition? Applicability explained? Proof and complexity sound? Accepted? Time? What contrast problem should come next?"></textarea></div>
         </section>
 

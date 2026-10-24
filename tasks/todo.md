@@ -8,3 +8,13 @@
 - [x] Review the diff and confirm no learner-specific data was added to the shared repository.
 
 Risks: generated branches can be plausible but false; keep them labeled and sourced. The page has no model backend; prompt generation is copy/paste. Local browser storage is not a backup, so export Markdown for durable records.
+
+## Reliability and adaptive-learning update
+
+- [x] Restrict OpenCode commits to the exact file path reported by an edit event; make message checkpoints empty commits.
+- [x] Let the coach prepare analyses and hint ladders before the learner records an attempt.
+- [x] Derive attempt hint exposure from timestamped hint events and deduplicate transfer metrics by first-seen problem identity.
+- [x] Serialize backup replacement against pending autosaves and add an import-race regression test.
+- [x] Add explainable, low-confidence recurring-mistake and later-recovery candidates; connect attempts to hint events and graph links.
+- [x] Install Chrome in CI and extend the browser flow for coach preparation, hints, transfer evidence, and import.
+- [x] Update product documentation and verify the full test suite.

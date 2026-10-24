@@ -5,16 +5,53 @@
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.CPWorkspaceCore = api;
 })(typeof globalThis === "undefined" ? this : globalThis, function buildCore() {
-  const VERSION = 2;
+  const VERSION = 3;
   const NODE_TYPES = new Set(["problem", "concept", "pattern", "mistake", "recovery", "check"]);
   const EDGE_TYPES = new Set(["requires", "supports", "leads to", "blocks", "is detected by", "recovers from", "implements", "shares a principle", "is a near-miss for"]);
   const VALIDATION_SOURCES = new Set(["Self-assessed", "Online judge accepted", "Counterexample tested", "Coach reviewed proof", "Official analysis checked"]);
+  const DIAGNOSIS_RULES = [
+    {
+      id: "complexity-not-checked",
+      label: "Complexity was not checked against the constraints",
+      recoveryLabel: "Estimate complexity against the input limits",
+      pattern: /\b(time limit|tle|too slow|quadratic|o\s*\(\s*n\s*(?:\*|\^?\s*2)|complexity|too many operations)\b/i,
+      recoveryPattern: /\b(?:now|this time|before coding).{0,48}(?:estimate|check|compare).{0,36}(?:complexity|cost|constraints?|operations?)\b/i
+    },
+    {
+      id: "boundary-case-missed",
+      label: "A boundary case or index boundary was missed",
+      recoveryLabel: "Test boundary cases before accepting the implementation",
+      pattern: /\b(off[- ]by[- ]one|boundary bug|missed (?:the )?(?:empty|single|n\s*=\s*1|edge) case|forgot (?:the )?(?:empty|single|n\s*=\s*1|edge) case|overflow)\b/i,
+      recoveryPattern: /\b(?:now|this time|before submitting).{0,48}(?:test|check|try).{0,36}(?:boundary|edge|empty|single|n\s*=\s*1|overflow|counterexample)\b/i
+    },
+    {
+      id: "state-or-cache-mismatch",
+      label: "The state, cache key, or returned value did not match the needed information",
+      recoveryLabel: "Check what each state and cached value represents",
+      pattern: /\b(missing state|forgot to (?:track|store|reset)|wrong (?:state|cache|memo|return(?: value)?|variable)|stale cache|wrong memo(?:ization)? key|returned the wrong|return(?:ed)? the wrong value)\b/i,
+      recoveryPattern: /\b(?:now|this time|before coding).{0,48}(?:reset|track|store|check|return|cache).{0,36}(?:state|cache|memo|value|index|variable|test case)\b/i
+    },
+    {
+      id: "precondition-unchecked",
+      label: "An algorithm precondition was assumed instead of checked",
+      recoveryLabel: "Check algorithm preconditions before choosing a pattern",
+      pattern: /\b(assum(?:e|ed|ing).{0,48}(?:monoton\w*|greedy)|without (?:proving|checking).{0,32}(?:monoton\w*|invariant|greedy|valid)|did not prove.{0,32}(?:monoton\w*|invariant)|not monotone|not monotonic|greedy (?:fails|is wrong))\b/i,
+      recoveryPattern: /\b(?:now|this time|before coding).{0,48}(?:prove|check|verify|test).{0,36}(?:monoton\w*|invariant|precondition|greedy)\b/i
+    },
+    {
+      id: "test-coverage-too-narrow",
+      label: "Testing did not cover a case that distinguishes the failure",
+      recoveryLabel: "Use a counterexample and edge cases to test the reasoning",
+      pattern: /\b(only tested (?:the )?sample|sample only|missed (?:the )?counterexample|did not test.{0,32}(?:edge|boundary|large|duplicate|empty)|forgot to test)\b/i,
+      recoveryPattern: /\b(?:now|this time|before submitting).{0,48}(?:test|check|try).{0,36}(?:counterexample|edge|boundary|large|duplicate|empty|sample)\b/i
+    }
+  ];
   const emptyFields = () => ({
     problemTitle: "", problemUrl: "", problemId: "", platform: "", topicTags: "", difficulty: "",
     problemText: "", attemptNotes: "", goal: "", constraints: "", baseline: "", conceptGraph: "",
-    solverRoutes: "", failureMap: "", constructionReason: "", expertChecks: "", transferProblem: "",
+    solverRoutes: "", failureMap: "", constructionReason: "", expertChecks: "",
     nearMissProblem: "", nearMissQuestion: "", nearMissReason: "",
-    transferMode: "Untimed", hintLevel: "0", transferNotes: "", hintLadder: ""
+    transferNotes: "", hintLadder: ""
   });
 
   function makeId(prefix = "id") {
@@ -72,6 +109,35 @@
     };
   }
 
+  function problemIdentity(fields = {}) {
+    const platform = String(fields.platform || "").trim().toLocaleLowerCase().replace(/\s+/g, " ");
+    const problemId = String(fields.problemId || "").trim().toLocaleLowerCase().replace(/\s+/g, "");
+    if (problemId) return `id:${platform ? `${platform}:` : ""}${problemId}`;
+    const url = String(fields.problemUrl || "").trim().toLocaleLowerCase()
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .split(/[?#]/, 1)[0]
+      .replace(/\/+$/, "");
+    return url ? `url:${url}` : null;
+  }
+
+  function diagnoseAttempt(text) {
+    const source = String(text || "").replace(/\s+/g, " ").trim();
+    if (!source) return [];
+    return DIAGNOSIS_RULES.flatMap((rule) => {
+      const match = rule.pattern.exec(source);
+      if (!match) return [];
+      const start = Math.max(0, match.index - 70);
+      const end = Math.min(source.length, match.index + match[0].length + 90);
+      return [{
+        id: rule.id,
+        label: rule.label,
+        confidence: "low",
+        evidence: source.slice(start, end).trim()
+      }];
+    });
+  }
+
   function normalizeProblem(problem = {}) {
     const id = problem.id || makeId("problem");
     return {
@@ -101,6 +167,35 @@
     };
   }
 
+  function createSnapshotQueue(writeSnapshot) {
+    if (typeof writeSnapshot !== "function") throw new Error("A snapshot writer is required");
+    let queue = Promise.resolve();
+    let replacement = null;
+
+    function enqueue(snapshot) {
+      if (replacement) return replacement;
+      const operation = queue.catch(() => {}).then(() => writeSnapshot(snapshot));
+      queue = operation.catch(() => {});
+      return operation;
+    }
+
+    function replace(snapshot) {
+      if (replacement) return replacement.then(() => replace(snapshot));
+      const operation = (async () => {
+        await queue.catch(() => {});
+        await writeSnapshot(snapshot);
+      })();
+      replacement = operation.finally(() => { replacement = null; });
+      return replacement;
+    }
+
+    function wait() {
+      return replacement || queue;
+    }
+
+    return { enqueue, replace, wait, locked: () => Boolean(replacement) };
+  }
+
   function migrateLegacy(legacy = {}) {
     const problem = createProblem(legacy.fields || {});
     problem.updatedAt = legacy.updatedAt || problem.updatedAt;
@@ -115,9 +210,30 @@
     };
   }
 
+  function migrateV2(raw = {}) {
+    const problems = Array.isArray(raw.problems) ? raw.problems.map(normalizeProblem) : [];
+    if (!problems.length) return createWorkspace();
+    const activeProblemId = problems.some((problem) => problem.id === raw.activeProblemId)
+      ? raw.activeProblemId
+      : problems[0].id;
+    const graph = raw.graph || {};
+    return {
+      version: VERSION,
+      activeProblemId,
+      problems,
+      graph: {
+        nodes: Array.isArray(graph.nodes) ? graph.nodes : [],
+        edges: Array.isArray(graph.edges) ? graph.edges : []
+      },
+      reviewEvents: Array.isArray(raw.reviewEvents) ? raw.reviewEvents : [],
+      migratedFrom: 2
+    };
+  }
+
   function normalizeWorkspace(raw) {
     if (!raw || typeof raw !== "object") return createWorkspace();
     if (raw.version === 1 && raw.fields) return migrateLegacy(raw);
+    if (raw.version === 2) return migrateV2(raw);
     if (raw.version !== VERSION) return createWorkspace();
     const problems = Array.isArray(raw.problems) ? raw.problems.map(normalizeProblem) : [];
     if (problems.length === 0) return createWorkspace();
@@ -172,25 +288,71 @@
     const problem = getProblem(workspace, problemId);
     if (!problem) throw new Error("Unknown problem ID");
     const createdAt = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
+    const identity = problemIdentity(problem.fields);
+    const firstAttemptForIdentity = Boolean(identity) && !workspace.problems.some((item) =>
+      item.attempts.some((previous) => (previous.problemKey || problemIdentity(item.fields)) === identity)
+    );
+    const assignedHints = new Set(problem.attempts.flatMap((previous) => previous.hintEventIds || []));
+    const attemptedAt = new Date(createdAt).getTime();
+    const exposedHints = problem.hintEvents.filter((hint) => {
+      if (assignedHints.has(hint.id)) return false;
+      const shownAt = new Date(hint.createdAt).getTime();
+      return !Number.isFinite(attemptedAt) || !Number.isFinite(shownAt) || shownAt <= attemptedAt;
+    });
+    const hintLevel = exposedHints.reduce((highest, hint) => Math.max(highest, Number(hint.hintLevel || 0)), 0);
+    const note = String(attempt.notes || "");
+    const previousNotes = String(problem.attempts.at(-1)?.notes || "");
+    const newNotes = previousNotes && note.startsWith(previousNotes) ? note.slice(previousNotes.length).trim() : note;
+    const nearMissResponse = String(attempt.nearMissResponse || "");
+    const diagnosisText = [newNotes, nearMissResponse, ...exposedHints.map((hint) => hint.learnerResponse)].filter(Boolean).join("\n");
+    const diagnosisCandidates = diagnoseAttempt(diagnosisText).map((candidate) => ({ ...candidate, createdAt }));
+    const currentDiagnosisIds = new Set(diagnosisCandidates.map((candidate) => candidate.id));
+    const priorSignals = workspace.problems.flatMap((item) => item.attempts.flatMap((previous) =>
+      (previous.diagnosisCandidates || []).map((candidate) => ({ candidate, attempt: previous, problem: item }))
+    ));
+    const recoveryCandidates = DIAGNOSIS_RULES.flatMap((rule) => {
+      const prior = priorSignals.filter((signal) => signal.candidate.id === rule.id);
+      const match = rule.recoveryPattern?.exec(diagnosisText);
+      if (!prior.length || !match || currentDiagnosisIds.has(rule.id)) return [];
+      const start = Math.max(0, match.index - 60);
+      const end = Math.min(diagnosisText.length, match.index + match[0].length + 80);
+      return [{
+        id: rule.id,
+        label: rule.label,
+        recoveryLabel: rule.recoveryLabel,
+        confidence: "low",
+        evidence: diagnosisText.slice(start, end).trim(),
+        recoveredFromAttemptIds: [...new Set(prior.map((signal) => signal.attempt.id))],
+        recoveredFromProblemIds: [...new Set(prior.map((signal) => signal.problem.id))]
+      }];
+    });
     const event = {
       id: attempt.id || makeId("attempt"),
       problemId,
       createdAt,
+      problemKey: identity,
+      firstAttemptForIdentity,
+      transferEligible: Boolean(attempt.unseen && firstAttemptForIdentity),
       mode: attempt.mode === "Timed" ? "Timed" : "Untimed",
       result: attempt.result || "Unsolved",
       timeMinutes: Math.max(0, Number(attempt.timeMinutes || 0)),
-      hintLevel: Math.min(5, Math.max(0, Number(attempt.hintLevel || 0))),
+      hintLevel,
+      hintEventIds: exposedHints.map((hint) => hint.id),
+      hintExposureCount: exposedHints.length,
+      hintExposureSource: "timestamped-events",
       patternId: attempt.patternId || null,
       unseen: Boolean(attempt.unseen),
-      approachUnaided: Boolean(attempt.approachUnaided),
+      approachUnaided: exposedHints.length === 0,
       justified: Boolean(attempt.justified),
       proofSound: Boolean(attempt.proofSound),
       implementationCorrect: Boolean(attempt.implementationCorrect),
       distinguishedNearMiss: Boolean(attempt.distinguishedNearMiss),
-      nearMissResponse: String(attempt.nearMissResponse || ""),
+      nearMissResponse,
       validationSource: VALIDATION_SOURCES.has(attempt.validationSource) ? attempt.validationSource : "Self-assessed",
       validationEvidence: String(attempt.validationEvidence || ""),
-      notes: String(attempt.notes || "")
+      notes: note,
+      diagnosisCandidates,
+      recoveryCandidates
     };
     return {
       workspace: {
@@ -341,6 +503,46 @@
       .sort((a, b) => b.problemIds.length - a.problemIds.length || a.label.localeCompare(b.label));
   }
 
+  function getRecurringDiagnoses(workspace, minProblems = 2) {
+    const groups = new Map();
+    for (const problem of workspace.problems) {
+      for (const attempt of problem.attempts) {
+        for (const candidate of attempt.diagnosisCandidates || []) {
+          if (!candidate?.id || !candidate.label) continue;
+          let group = groups.get(candidate.id);
+          if (!group) {
+            group = { id: candidate.id, label: candidate.label, confidence: "low", evidence: [], problemIds: new Set(), problemKeys: new Set() };
+            groups.set(candidate.id, group);
+          }
+          group.problemIds.add(problem.id);
+          group.problemKeys.add(problemIdentity(problem.fields) || `record:${problem.id}`);
+          group.evidence.push({
+            problemId: problem.id,
+            problemTitle: problem.fields.problemTitle || "Untitled problem",
+            attemptId: attempt.id,
+            createdAt: candidate.createdAt || attempt.createdAt,
+            excerpt: candidate.evidence || ""
+          });
+        }
+      }
+    }
+    return [...groups.values()]
+      .map((group) => ({ ...group, problemIds: [...group.problemIds], problemKeys: [...group.problemKeys] }))
+      .filter((group) => group.problemKeys.length >= minProblems)
+      .sort((a, b) => b.problemKeys.length - a.problemKeys.length || a.label.localeCompare(b.label));
+  }
+
+  function getRecoveryCandidates(workspace) {
+    return workspace.problems.flatMap((problem) => problem.attempts.flatMap((attempt) =>
+      (attempt.recoveryCandidates || []).map((candidate) => ({
+        ...candidate,
+        attemptId: attempt.id,
+        problemId: problem.id,
+        problemTitle: problem.fields.problemTitle || "Untitled problem"
+      }))
+    ));
+  }
+
   function getAllCards(workspace) {
     return workspace.problems.flatMap((problem) => problem.cards.map((card) => ({
       ...card,
@@ -440,12 +642,42 @@
   }
 
   function transferMetrics(workspace, patternId) {
-    const attempts = workspace.problems.flatMap((problem) => problem.attempts)
-      .filter((attempt) => attempt.unseen && (!patternId || attempt.patternId === patternId));
+    const records = workspace.problems.flatMap((problem, problemOrder) => problem.attempts.map((attempt, attemptOrder) => ({
+      problem,
+      attempt,
+      problemOrder,
+      attemptOrder,
+      key: attempt.problemKey || problemIdentity(problem.fields)
+    }))).sort((a, b) => String(a.attempt.createdAt || "").localeCompare(String(b.attempt.createdAt || "")) || a.problemOrder - b.problemOrder || a.attemptOrder - b.attemptOrder);
+    const seen = new Set();
+    const attempts = [];
+    let unseenClaims = 0;
+    let repeatedProblemAttempts = 0;
+    let unknownProblemIdentityClaims = 0;
+    let legacyUnaidedReports = 0;
+    for (const record of records) {
+      const { attempt, problem, key } = record;
+      if (attempt.unseen) unseenClaims += 1;
+      if (!key) {
+        if (attempt.unseen) unknownProblemIdentityClaims += 1;
+        continue;
+      }
+      const first = !seen.has(key);
+      seen.add(key);
+      if (!first) repeatedProblemAttempts += 1;
+      if (!first || !attempt.unseen || (patternId && attempt.patternId !== patternId)) continue;
+      attempts.push({ ...attempt, problemTitle: problem.fields.problemTitle || "Untitled problem", problemKey: key, firstAttemptForIdentity: true });
+      if (attempt.hintExposureSource !== "timestamped-events" && attempt.approachUnaided) legacyUnaidedReports += 1;
+    }
     const count = (predicate) => attempts.filter(predicate).length;
     return {
       eligible: attempts.length,
-      unpromptedRecognition: count((attempt) => attempt.approachUnaided && attempt.hintLevel === 0),
+      uniqueFirstSeen: attempts.length,
+      unseenClaims,
+      repeatedProblemAttempts,
+      unknownProblemIdentityClaims,
+      legacyUnaidedReports,
+      unpromptedRecognition: count((attempt) => attempt.hintExposureSource === "timestamped-events" && attempt.approachUnaided),
       applicabilityJustified: count((attempt) => attempt.justified),
       proofSound: count((attempt) => attempt.proofSound),
       implementationCorrect: count((attempt) => attempt.implementationCorrect),
@@ -468,6 +700,7 @@
     emptySchedule,
     createProblem,
     createWorkspace,
+    createSnapshotQueue,
     migrateLegacy,
     normalizeWorkspace,
     getProblem,
@@ -487,6 +720,10 @@
     calculateSM2,
     applyReview,
     recordHint,
-    transferMetrics
+    transferMetrics,
+    problemIdentity,
+    diagnoseAttempt,
+    getRecurringDiagnoses,
+    getRecoveryCandidates
   };
 });

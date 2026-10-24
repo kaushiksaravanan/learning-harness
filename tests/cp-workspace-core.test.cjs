@@ -16,7 +16,7 @@ test("migrates the former single-problem browser record", () => {
     patterns: [{ name: "Monotonicity", trigger: "Check the predicate", recovery: "Prove it", repetitions: 2, interval: 6, ease: 2.4, nextReview: "2026-01-07" }]
   });
 
-  assert.equal(migrated.version, 2);
+  assert.equal(migrated.version, 3);
   assert.equal(migrated.problems.length, 1);
   assert.equal(migrated.problems[0].fields.problemTitle, "Old draft");
   assert.equal(migrated.problems[0].cards[0].schedule.repetitions, 2);
@@ -34,6 +34,23 @@ test("keeps multiple problems under distinct stable IDs", () => {
   assert.equal(core.getProblem(two, two.problems[0].id).fields.problemTitle, "A");
 });
 
+test("migrates version 2 libraries without dropping attempts, graph links, or reviews", () => {
+  const legacy = {
+    version: 2,
+    activeProblemId: "problem-a",
+    problems: [{ id: "problem-a", fields: { problemTitle: "Saved" }, attempts: [{ id: "attempt-a", notes: "kept" }], cards: [], hintEvents: [] }],
+    graph: { nodes: [{ id: "node-a", type: "mistake", label: "kept", problemIds: ["problem-a"] }], edges: [] },
+    reviewEvents: [{ id: "review-a", cardId: "card-a" }]
+  };
+  const restored = core.normalizeWorkspace(legacy);
+
+  assert.equal(restored.version, 3);
+  assert.equal(restored.migratedFrom, 2);
+  assert.equal(restored.problems[0].attempts[0].notes, "kept");
+  assert.equal(restored.graph.nodes[0].label, "kept");
+  assert.equal(restored.reviewEvents[0].id, "review-a");
+});
+
 test("appends attempt history and keeps independent reasoning dimensions", () => {
   let workspace = core.createWorkspace();
   workspace = core.saveProblem(workspace, workspace.activeProblemId, { problemTitle: "Transfer test" });
@@ -49,9 +66,36 @@ test("appends attempt history and keeps independent reasoning dimensions", () =>
   assert.equal(second.event.implementationCorrect, true);
 });
 
+test("serializes snapshot replacement after queued writes and blocks stale autosaves", async () => {
+  const writes = [];
+  let releaseExisting;
+  let startedExisting;
+  const existingStarted = new Promise((resolve) => { startedExisting = resolve; });
+  const queue = core.createSnapshotQueue((snapshot) => {
+    if (snapshot.name === "existing") {
+      startedExisting();
+      return new Promise((resolve) => { releaseExisting = () => { writes.push(snapshot.name); resolve(); }; });
+    }
+    writes.push(snapshot.name);
+    return Promise.resolve();
+  });
+
+  const existingWrite = queue.enqueue({ name: "existing" });
+  await existingStarted;
+  const replacement = queue.replace({ name: "backup" });
+  const staleAutosave = queue.enqueue({ name: "stale form snapshot" });
+  assert.equal(queue.locked(), true);
+  releaseExisting();
+  await Promise.all([existingWrite, replacement, staleAutosave]);
+
+  assert.deepEqual(writes, ["existing", "backup"]);
+  assert.equal(queue.locked(), false);
+});
+
 test("records contrastive reasoning and keeps feedback provenance explicit", () => {
   const workspace = core.createWorkspace();
-  const recorded = core.recordAttempt(workspace, workspace.activeProblemId, {
+  const identified = core.saveProblem(workspace, workspace.activeProblemId, { platform: "AtCoder", problemId: "abc100_a" });
+  const recorded = core.recordAttempt(identified, workspace.activeProblemId, {
     unseen: true,
     distinguishedNearMiss: true,
     nearMissResponse: "The predicate is not monotone, so binary search is invalid.",
@@ -177,16 +221,104 @@ test("review ratings require retrieval and reveal, and repeated event IDs do not
 test("transfer metrics count each skill dimension separately", () => {
   let workspace = core.createWorkspace();
   const problemId = workspace.activeProblemId;
-  workspace = core.recordAttempt(workspace, problemId, { unseen: true, patternId: "binary-search", approachUnaided: true, hintLevel: 0, justified: true, proofSound: true, implementationCorrect: true, result: "Solved" }).workspace;
-  workspace = core.recordAttempt(workspace, problemId, { unseen: true, patternId: "binary-search", approachUnaided: false, hintLevel: 3, justified: true, proofSound: false, implementationCorrect: true, result: "Solved" }).workspace;
-  workspace = core.recordAttempt(workspace, problemId, { unseen: false, patternId: "binary-search", approachUnaided: true, hintLevel: 0, result: "Solved" }).workspace;
+  workspace = core.saveProblem(workspace, problemId, { platform: "Codeforces", problemId: "1872A" });
+  const first = core.recordAttempt(workspace, problemId, { unseen: true, patternId: "binary-search", justified: true, proofSound: true, implementationCorrect: true, result: "Solved" }, new Date("2026-01-01T12:00:00Z"));
+  const repeat = core.recordAttempt(first.workspace, problemId, { unseen: true, patternId: "binary-search", approachUnaided: false, hintLevel: 5, justified: true, proofSound: false, implementationCorrect: true, result: "Solved" }, new Date("2026-01-02T12:00:00Z"));
+  const second = core.addProblem(repeat.workspace, { platform: "Codeforces", problemId: "1872B" });
+  const hinted = core.recordHint(second.workspace, second.problem.id, { level: 2, text: "Check the precondition" }, "I checked whether the predicate changes only once.", new Date("2026-01-03T12:00:00Z"));
+  workspace = core.recordAttempt(hinted.workspace, second.problem.id, { unseen: true, patternId: "binary-search", approachUnaided: true, hintLevel: 0, justified: true, proofSound: false, implementationCorrect: true, result: "Solved" }, new Date("2026-01-04T12:00:00Z")).workspace;
   const metrics = core.transferMetrics(workspace, "binary-search");
 
   assert.equal(metrics.eligible, 2);
+  assert.equal(metrics.unseenClaims, 3);
+  assert.equal(metrics.repeatedProblemAttempts, 1);
   assert.equal(metrics.unpromptedRecognition, 1);
   assert.equal(metrics.applicabilityJustified, 2);
   assert.equal(metrics.proofSound, 1);
   assert.equal(metrics.solved, 2);
+  assert.equal(core.getProblem(workspace, second.problem.id).attempts[0].hintLevel, 2);
+  assert.equal(core.getProblem(workspace, second.problem.id).attempts[0].approachUnaided, false);
+});
+
+test("derives hint exposure from events and ignores manual hint ratings", () => {
+  let workspace = core.createWorkspace();
+  const problemId = workspace.activeProblemId;
+  workspace = core.saveProblem(workspace, problemId, { problemUrl: "https://codeforces.com/problemset/problem/1/A" });
+  const hinted = core.recordHint(workspace, problemId, { level: 3, text: "Look for a monotone predicate" }, "I checked whether feasibility is monotone.", new Date("2026-01-01T12:00:00Z"));
+  const recorded = core.recordAttempt(hinted.workspace, problemId, { hintLevel: 0, approachUnaided: true, notes: "I checked the constraint." }, new Date("2026-01-01T12:01:00Z"));
+
+  assert.equal(recorded.event.hintExposureSource, "timestamped-events");
+  assert.equal(recorded.event.hintExposureCount, 1);
+  assert.deepEqual(recorded.event.hintEventIds, [hinted.event.id]);
+  assert.equal(recorded.event.hintLevel, 3);
+  assert.equal(recorded.event.approachUnaided, false);
+  assert.equal(recorded.event.firstAttemptForIdentity, true);
+});
+
+test("automatically groups repeated low-confidence mistake signals across problems", () => {
+  let workspace = core.createWorkspace();
+  const firstId = workspace.activeProblemId;
+  workspace = core.saveProblem(workspace, firstId, { problemTitle: "First", problemId: "A", platform: "Test" });
+  workspace = core.recordAttempt(workspace, firstId, { notes: "I assumed the predicate was monotone without proving it." }).workspace;
+  const second = core.addProblem(workspace, { problemTitle: "Second", problemId: "B", platform: "Test" });
+  workspace = core.recordAttempt(second.workspace, second.problem.id, { notes: "Again I assumed the predicate was monotone without proving it." }).workspace;
+  const candidates = core.getRecurringDiagnoses(workspace);
+
+  assert.equal(candidates.length, 1);
+  assert.equal(candidates[0].id, "precondition-unchecked");
+  assert.equal(candidates[0].confidence, "low");
+  assert.equal(candidates[0].problemIds.length, 2);
+  assert.equal(candidates[0].evidence.length, 2);
+});
+
+test("does not count duplicate workspace records as distinct diagnostic or transfer evidence", () => {
+  let workspace = core.createWorkspace();
+  const firstId = workspace.activeProblemId;
+  workspace = core.saveProblem(workspace, firstId, { platform: "Codeforces", problemId: "1900A" });
+  workspace = core.recordAttempt(workspace, firstId, { unseen: true, notes: "I assumed the predicate was monotone without proving it." }).workspace;
+  const duplicate = core.addProblem(workspace, { platform: "Codeforces", problemId: "1900A" });
+  workspace = core.recordAttempt(duplicate.workspace, duplicate.problem.id, { unseen: true, notes: "Again I assumed the predicate was monotone without proving it." }).workspace;
+
+  assert.equal(core.getRecurringDiagnoses(workspace).length, 0);
+  const transfer = core.transferMetrics(workspace);
+  assert.equal(transfer.eligible, 1);
+  assert.equal(transfer.repeatedProblemAttempts, 1);
+});
+
+test("excludes self-reported unseen attempts without a stable problem identity", () => {
+  const workspace = core.createWorkspace();
+  const attempt = core.recordAttempt(workspace, workspace.activeProblemId, { unseen: true, notes: "I found a solution." });
+  const transfer = core.transferMetrics(attempt.workspace);
+
+  assert.equal(transfer.eligible, 0);
+  assert.equal(transfer.unknownProblemIdentityClaims, 1);
+});
+
+test("labels text-pattern mistake matches as low-confidence candidates with evidence", () => {
+  const [candidate] = core.diagnoseAttempt("I forgot to reset the memo cache between test cases.");
+  assert.equal(candidate.id, "state-or-cache-mismatch");
+  assert.equal(candidate.confidence, "low");
+  assert.match(candidate.evidence, /reset the memo cache/);
+});
+
+test("associates an explicit later recovery phrase with the earlier mistake attempt", () => {
+  let workspace = core.createWorkspace();
+  const firstId = workspace.activeProblemId;
+  workspace = core.saveProblem(workspace, firstId, { platform: "Codeforces", problemId: "2000A" });
+  const failed = core.recordAttempt(workspace, firstId, {
+    notes: "I assumed the predicate was monotone without proving it."
+  }, new Date("2026-01-01T12:00:00Z"));
+  const second = core.addProblem(failed.workspace, { platform: "AtCoder", problemId: "abc200_a" });
+  const recovered = core.recordAttempt(second.workspace, second.problem.id, {
+    nearMissResponse: "This time I checked whether feasibility is monotone before choosing binary search. The true values are not a prefix or suffix."
+  }, new Date("2026-01-08T12:00:00Z"));
+  const candidates = core.getRecoveryCandidates(recovered.workspace);
+
+  assert.equal(candidates.length, 1);
+  assert.equal(candidates[0].id, "precondition-unchecked");
+  assert.equal(candidates[0].problemId, second.problem.id);
+  assert.deepEqual(candidates[0].recoveredFromAttemptIds, [failed.event.id]);
+  assert.match(candidates[0].evidence, /checked whether feasibility is monotone/);
 });
 
 test("another hint requires a learner response and appends a hint event", () => {

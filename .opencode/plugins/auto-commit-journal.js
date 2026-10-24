@@ -161,8 +161,7 @@ export const AutoCommitJournal = async ({ directory, worktree, client }) => {
         const userPrompt = latestPromptBySession.get(info.sessionID);
         const why = [userPrompt ? `User request: ${userPrompt}` : "User request text was unavailable.", assistantSummary].join("\n\n");
         try {
-          const result = committer.commitCurrent({
-            allowEmpty: true,
+          const result = committer.checkpoint({
             trigger: "completed assistant message",
             sessionId: info.sessionID,
             messageId: info.id,

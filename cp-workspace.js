@@ -19,7 +19,8 @@
   let database = null;
   let storageMode = "browser storage";
   let saveTimer = null;
-  let writeQueue = Promise.resolve();
+  const persistence = Core.createSnapshotQueue(storeSnapshot);
+  let importControlStates = null;
   let currentReview = null;
   let reviewQueue = [];
   let reviewIndex = 0;
@@ -133,21 +134,33 @@
     for (const node of fieldNodes) node.value = fields[node.dataset.field] ?? "";
   }
 
-  function queuePersist() {
-    if (!activeProblem()) return Promise.resolve();
-    workspace = Core.saveProblem(workspace, activeProblemId, collectFields());
-    const snapshot = JSON.parse(JSON.stringify(workspace));
+  function cloneSnapshot(snapshot) {
+    return JSON.parse(JSON.stringify(snapshot));
+  }
+
+  function persistSnapshot(snapshot, { replace = false, propagate = false } = {}) {
     setStatus("Saving…", "saving");
-    writeQueue = writeQueue.catch(() => {}).then(() => storeSnapshot(snapshot)).then(() => {
+    const operation = replace ? persistence.replace(snapshot) : persistence.enqueue(snapshot);
+    return operation.then(() => {
       setStatus(`Saved on this device · ${storageMode}`);
       refreshHeader();
     }).catch((error) => {
       setStatus(error.message || "Could not save locally", "error");
+      if (propagate) throw error;
     });
-    return writeQueue;
+  }
+
+  function queuePersist() {
+    if (persistence.locked()) return persistence.wait();
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    if (!activeProblem()) return Promise.resolve();
+    workspace = Core.saveProblem(workspace, activeProblemId, collectFields());
+    return persistSnapshot(cloneSnapshot(workspace));
   }
 
   function scheduleSave() {
+    if (persistence.locked()) return;
     clearTimeout(saveTimer);
     setStatus("Saving…", "saving");
     saveTimer = setTimeout(() => { void queuePersist(); }, 280);
@@ -174,21 +187,13 @@
     const title = problem?.fields.problemTitle?.trim();
     $("activeProblemTag").textContent = title || `Draft · ${shortId(activeProblemId)}`;
     $("saveStatus").setAttribute("title", `Saved using ${storageMode}. Export a backup for durable storage.`);
-    const coachUnlocked = Boolean(problem?.attempts.some((attempt) => String(attempt.notes || "").trim()));
-    $("modeToggle").title = coachUnlocked ? "Open the coach analysis after recording your first attempt" : "Record a concrete first attempt before opening the coach analysis";
+    $("modeToggle").title = viewMode === "coach" ? "Return to learner view" : "Open coach view to prepare the analysis before practice";
     if (viewMode === "learner") {
-      $("coachGateStatus").textContent = coachUnlocked
-        ? "Your first attempt is saved. You can open the coach analysis when you are ready."
-        : "Record a concrete first attempt in the left pane before opening the coach analysis.";
+      $("coachGateStatus").textContent = "Coach view can prepare the problem and hint ladder before you start. Switch to learner view for a cold attempt.";
     }
   }
 
   function setViewMode(mode) {
-    if (mode === "coach" && !activeProblem()?.attempts.some((attempt) => String(attempt.notes || "").trim())) {
-      $("coachGateStatus").textContent = "Write what you tried in the left pane, then save an attempt record before opening the analysis.";
-      $("attemptNotes").focus();
-      return;
-    }
     viewMode = mode === "coach" ? "coach" : "learner";
     const learner = viewMode === "learner";
     $("learnerPanel").hidden = !learner;
@@ -220,9 +225,14 @@
       const heading = document.createElement("strong");
       heading.textContent = `${attempt.result} · ${attempt.mode} · ${formatDateTime(attempt.createdAt)}`;
       const details = document.createElement("p");
+      const hintEvidence = attempt.hintExposureSource === "timestamped-events"
+        ? attempt.approachUnaided
+          ? "no cue events before attempt"
+          : `${attempt.hintExposureCount} cue${attempt.hintExposureCount === 1 ? "" : "s"} recorded (highest ${attempt.hintLevel})`
+        : `legacy hint report ${attempt.hintLevel ?? "unknown"}`;
       const evidence = [
-        attempt.unseen ? "unseen" : "seen/unknown",
-        attempt.approachUnaided ? "approach unaided" : `hint level ${attempt.hintLevel}`,
+        attempt.unseen ? attempt.firstAttemptForIdentity === false ? "unseen claim · repeat" : "claimed unseen" : "seen/unknown",
+        hintEvidence,
         attempt.justified ? "applicability explained" : "no applicability evidence",
         attempt.proofSound ? "proof sound" : "proof unverified",
         attempt.implementationCorrect ? "implementation correct" : "implementation unverified",
@@ -245,6 +255,16 @@
         evidenceNote.textContent = `Feedback reference: ${attempt.validationEvidence.slice(0, 240)}`;
         row.append(evidenceNote);
       }
+      if (!compact && attempt.diagnosisCandidates?.length) {
+        const diagnoses = document.createElement("p");
+        diagnoses.textContent = `Possible issue signals (low-confidence text match): ${attempt.diagnosisCandidates.map((item) => item.label).join(" · ")}`;
+        row.append(diagnoses);
+      }
+      if (!compact && attempt.recoveryCandidates?.length) {
+        const recoveries = document.createElement("p");
+        recoveries.textContent = `Possible recovery signals (coach review): ${attempt.recoveryCandidates.map((item) => item.recoveryLabel).join(" · ")}`;
+        row.append(recoveries);
+      }
       container.append(row);
     }
   }
@@ -254,8 +274,8 @@
     const metrics = Core.transferMetrics(workspace, patternId);
     const denominator = metrics.eligible;
     $("transferSummary").textContent = denominator
-      ? `${denominator} unseen attempt${denominator === 1 ? "" : "s"}: independent approach ${metrics.unpromptedRecognition}/${denominator} · applicability explained ${metrics.applicabilityJustified}/${denominator} · self-rated proof sound ${metrics.proofSound}/${denominator} · implementation marked correct ${metrics.implementationCorrect}/${denominator} · solved ${metrics.solved}/${denominator} · judge accepted ${metrics.judgeAccepted}/${denominator} · coach-reviewed proof ${metrics.coachReviewed}/${denominator} · near-miss distinction ${metrics.distinguishedNearMiss}/${denominator}.`
-      : "No unseen-problem evidence recorded yet. Log attempts with the unseen-problem box checked; correctness alone does not establish transfer.";
+      ? `${denominator} unique first-seen unseen problem${denominator === 1 ? "" : "s"}: event-derived unaided recognition ${metrics.unpromptedRecognition}/${denominator} · applicability explained ${metrics.applicabilityJustified}/${denominator} · self-rated proof sound ${metrics.proofSound}/${denominator} · implementation marked correct ${metrics.implementationCorrect}/${denominator} · solved ${metrics.solved}/${denominator} · judge accepted ${metrics.judgeAccepted}/${denominator} · coach-reviewed proof ${metrics.coachReviewed}/${denominator} · near-miss distinction ${metrics.distinguishedNearMiss}/${denominator}. ${metrics.repeatedProblemAttempts} repeated attempt(s) excluded; ${metrics.unknownProblemIdentityClaims} unseen claim(s) need a problem ID or URL.`
+      : `No uniquely identified first-seen transfer attempts yet. Mark a problem unseen and provide its platform/problem ID or URL. ${metrics.unseenClaims} unseen claim(s), ${metrics.unknownProblemIdentityClaims} without an identity, and ${metrics.repeatedProblemAttempts} repeated attempt(s) excluded.`;
   }
 
   function renderAttempts() {
@@ -353,6 +373,135 @@
       ? recurring.map((node) => `${node.label} (${node.problems.length} linked problems)`).join(" · ")
       : "No mistake node is linked to multiple problems yet. Reuse the same node label when the same misconception appears again.";
     insight.append(summary);
+
+    const diagnosisTitle = document.createElement("strong");
+    diagnosisTitle.className = "diagnosis-title";
+    diagnosisTitle.textContent = "Possible recurring issues from attempt language";
+    insight.append(diagnosisTitle);
+    const diagnoses = Core.getRecurringDiagnoses(workspace);
+    if (!diagnoses.length) {
+      const emptyDiagnosis = document.createElement("p");
+      emptyDiagnosis.textContent = "No repeated text signals yet. Suggestions require the same signal in attempts on two identified problems.";
+      insight.append(emptyDiagnosis);
+    }
+    for (const diagnosis of diagnoses) {
+      const row = document.createElement("div");
+      row.className = "diagnosis-suggestion";
+      const label = document.createElement("strong");
+      label.textContent = `${diagnosis.label} · low confidence`;
+      const sources = document.createElement("p");
+      sources.textContent = diagnosis.problemIds.map((problemId) => {
+        const problem = Core.getProblem(workspace, problemId);
+        return problem?.fields.problemTitle || `Problem ${shortId(problemId)}`;
+      }).join(" · ");
+      const quote = document.createElement("p");
+      quote.textContent = diagnosis.evidence.slice(-2).map((item) => `“${item.excerpt}”`).join(" · ");
+      const confirm = document.createElement("button");
+      confirm.className = "button button-small";
+      confirm.type = "button";
+      confirm.textContent = "Confirm & link as mistake";
+      confirm.addEventListener("click", () => {
+        try {
+          let nextWorkspace = workspace;
+          for (const problemId of diagnosis.problemIds) {
+            const evidence = diagnosis.evidence.filter((item) => item.problemId === problemId).map((item) => item.excerpt).join(" | ");
+            nextWorkspace = Core.addGraphNode(nextWorkspace, {
+              type: "mistake",
+              label: diagnosis.label,
+              description: `Low-confidence phrase match. Review learner evidence before treating this as established. ${evidence}`,
+              provenance: "derived",
+              confidence: "low",
+              problemId
+            }).workspace;
+          }
+          workspace = nextWorkspace;
+          void persistWithoutFieldUpdate();
+          renderGraph();
+        } catch (error) {
+          const status = document.createElement("p");
+          status.textContent = error.message;
+          row.append(status);
+        }
+      });
+      row.append(label, sources, quote, confirm);
+      insight.append(row);
+    }
+
+    const recoveryTitle = document.createElement("strong");
+    recoveryTitle.className = "diagnosis-title";
+    recoveryTitle.textContent = "Possible later recovery signals";
+    insight.append(recoveryTitle);
+    const recoveries = Core.getRecoveryCandidates(workspace);
+    if (!recoveries.length) {
+      const emptyRecovery = document.createElement("p");
+      emptyRecovery.textContent = "No explicit recovery statements linked to an earlier mistake yet. These phrases are also low-confidence and need coach review.";
+      insight.append(emptyRecovery);
+    }
+    for (const recovery of recoveries) {
+      const row = document.createElement("div");
+      row.className = "diagnosis-suggestion";
+      const label = document.createElement("strong");
+      label.textContent = `${recovery.recoveryLabel} · possible recovery`;
+      const sources = document.createElement("p");
+      sources.textContent = `Current attempt: ${recovery.problemTitle} · prior signal: ${recovery.recoveredFromProblemIds.map((id) => Core.getProblem(workspace, id)?.fields.problemTitle || `Problem ${shortId(id)}`).join(", ")}`;
+      const quote = document.createElement("p");
+      quote.textContent = `“${recovery.evidence}”`;
+      const confirm = document.createElement("button");
+      confirm.className = "button button-small";
+      confirm.type = "button";
+      confirm.textContent = "Confirm recovery link";
+      const mistakeLabel = recovery.label;
+      const alreadyLinked = workspace.graph.edges.some((edge) => {
+        if (edge.relation !== "recovers from") return false;
+        const from = workspace.graph.nodes.find((node) => node.id === edge.from);
+        const to = workspace.graph.nodes.find((node) => node.id === edge.to);
+        return from?.type === "recovery" && from.label === recovery.recoveryLabel && to?.type === "mistake" && to.label === mistakeLabel;
+      });
+      if (alreadyLinked) {
+        confirm.disabled = true;
+        confirm.textContent = "Recovery link confirmed";
+      }
+      confirm.addEventListener("click", () => {
+        try {
+          let nextWorkspace = workspace;
+          for (const problemId of recovery.recoveredFromProblemIds) {
+            nextWorkspace = Core.addGraphNode(nextWorkspace, {
+              type: "mistake",
+              label: mistakeLabel,
+              description: `Earlier low-confidence mistake signal. ${recovery.recoveredFromAttemptIds.join(", ")}`,
+              provenance: "derived",
+              confidence: "low",
+              problemId
+            }).workspace;
+          }
+          const mistake = nextWorkspace.graph.nodes.find((node) => node.type === "mistake" && node.label === mistakeLabel);
+          const addedRecovery = Core.addGraphNode(nextWorkspace, {
+            type: "recovery",
+            label: recovery.recoveryLabel,
+            description: `Possible recovery, confirmed by coach from attempt ${recovery.attemptId}: ${recovery.evidence}`,
+            provenance: "derived",
+            confidence: "low",
+            problemId: recovery.problemId
+          });
+          nextWorkspace = Core.addGraphEdge(addedRecovery.workspace, {
+            from: addedRecovery.node.id,
+            to: mistake.id,
+            relation: "recovers from",
+            evidence: `Attempt ${recovery.attemptId}: ${recovery.evidence}`,
+            problemId: recovery.problemId
+          }).workspace;
+          workspace = nextWorkspace;
+          void persistWithoutFieldUpdate();
+          renderGraph();
+        } catch (error) {
+          const status = document.createElement("p");
+          status.textContent = error.message;
+          row.append(status);
+        }
+      });
+      row.append(label, sources, quote, confirm);
+      insight.append(row);
+    }
   }
 
   function readPatternEntry(entry) {
@@ -522,29 +671,37 @@
     $("attemptMode").value = "Untimed";
     $("attemptResult").value = "Unsolved";
     $("attemptMinutes").value = "";
-    $("attemptHintLevel").value = "0";
     $("attemptPattern").value = "";
     $("validationSource").value = "Self-assessed";
     $("validationEvidence").value = "";
-    for (const id of ["attemptUnseen", "approachUnaided", "approachJustified", "proofSound", "implementationCorrect", "distinguishedNearMiss"]) $(id).checked = false;
+    for (const id of ["attemptUnseen", "approachJustified", "proofSound", "implementationCorrect", "distinguishedNearMiss"]) $(id).checked = false;
     $("nextMove").value = "";
     renderPatterns();
     refreshGraphControls();
     renderGraph();
     $("nearMissResponse").value = "";
     renderAttempts();
+    renderHintExposureStatus();
     renderLearnerPanel();
     refreshHeader();
   }
 
   async function persistWithoutFieldUpdate() {
-    const snapshot = JSON.parse(JSON.stringify(workspace));
-    setStatus("Saving…", "saving");
-    writeQueue = writeQueue.catch(() => {}).then(() => storeSnapshot(snapshot)).then(() => {
-      setStatus(`Saved on this device · ${storageMode}`);
-      refreshHeader();
-    }).catch((error) => setStatus(error.message || "Could not save locally", "error"));
-    return writeQueue;
+    if (persistence.locked()) return persistence.wait();
+    return persistSnapshot(cloneSnapshot(workspace));
+  }
+
+  function setImportLock(locked) {
+    if (locked) {
+      if (importControlStates) return;
+      importControlStates = [...document.querySelectorAll("button, input, select, textarea")]
+        .map((control) => ({ control, disabled: control.disabled }));
+      for (const { control } of importControlStates) control.disabled = true;
+      return;
+    }
+    if (!importControlStates) return;
+    for (const { control, disabled } of importControlStates) control.disabled = disabled;
+    importControlStates = null;
   }
 
   async function selectProblem(problemId) {
@@ -578,6 +735,17 @@
     renderTransferSummary();
   }
 
+  function renderHintExposureStatus() {
+    const problem = activeProblem();
+    if (!problem) return;
+    const assigned = new Set(problem.attempts.flatMap((attempt) => attempt.hintEventIds || []));
+    const pending = problem.hintEvents.filter((event) => !assigned.has(event.id));
+    const highest = pending.reduce((level, event) => Math.max(level, Number(event.hintLevel || 0)), 0);
+    $("hintExposureStatus").textContent = pending.length
+      ? `${pending.length} timestamped cue event${pending.length === 1 ? "" : "s"} will attach to the next saved attempt (highest cue ${highest}).`
+      : "No cue events since the previous attempt. Unaided recognition is derived from this event history.";
+  }
+
   async function recordAttempt() {
     await queuePersist();
     const problem = activeProblem();
@@ -595,10 +763,8 @@
       mode: $("attemptMode").value,
       result: $("attemptResult").value,
       timeMinutes: $("attemptMinutes").value,
-      hintLevel: $("attemptHintLevel").value,
       patternId: $("attemptPattern").value,
       unseen: $("attemptUnseen").checked,
-      approachUnaided: $("approachUnaided").checked,
       justified: $("approachJustified").checked,
       proofSound: $("proofSound").checked,
       implementationCorrect: $("implementationCorrect").checked,
@@ -612,15 +778,16 @@
     await persistWithoutFieldUpdate();
     $("attemptLogStatus").textContent = `Attempt saved · ${formatDateTime(result.event.createdAt)}`;
     $("attemptMinutes").value = "";
-    $("attemptHintLevel").value = "0";
     $("attemptPattern").value = "";
     $("nearMissResponse").value = "";
     $("validationSource").value = "Self-assessed";
     $("validationEvidence").value = "";
-    for (const id of ["attemptUnseen", "approachUnaided", "approachJustified", "proofSound", "implementationCorrect", "distinguishedNearMiss"]) $(id).checked = false;
+    for (const id of ["attemptUnseen", "approachJustified", "proofSound", "implementationCorrect", "distinguishedNearMiss"]) $(id).checked = false;
     $("attemptResult").value = "Unsolved";
     renderAttemptHistoryAndSave();
+    renderHintExposureStatus();
     renderLearnerPanel();
+    renderGraph();
     refreshHeader();
   }
 
@@ -794,6 +961,7 @@
   }
 
   async function requestNextHint() {
+    await queuePersist();
     const problem = activeProblem();
     const hints = (problem.fields.hintLadder || "").split(/\r?\n/).map((line) => line.replace(/^\s*\d+[.)]\s*/, "").trim()).filter(Boolean);
     const index = problem.hintEvents.length;
@@ -811,10 +979,10 @@
     }
     const result = Core.recordHint(workspace, activeProblemId, { level: index + 1, text: hints[index] }, response);
     workspace = result.workspace;
-    $("attemptHintLevel").value = String(Math.min(5, index + 1));
     $("nextMove").value = "";
     await persistWithoutFieldUpdate();
     renderLearnerPanel();
+    renderHintExposureStatus();
   }
 
   function makeMarkdown() {
@@ -822,6 +990,7 @@
     const fields = problem.fields;
     const linkedNodes = workspace.graph.nodes.filter((node) => (node.problemIds || []).includes(problem.id));
     const linkedEdges = workspace.graph.edges.filter((edge) => (edge.problemIds || []).includes(problem.id));
+    const recoveryRecords = problem.attempts.flatMap((attempt) => (attempt.recoveryCandidates || []).map((candidate) => ({ attempt, candidate })));
     const lines = [
       `# ${fields.problemTitle || "Untitled problem"}`,
       [fields.platform, fields.problemId, fields.difficulty ? `rating ${fields.difficulty}` : "", fields.topicTags].filter(Boolean).join(" · "),
@@ -860,9 +1029,11 @@
         `**Review schedule:** repetitions ${card.schedule.repetitions}, interval ${card.schedule.intervalDays} days, ease ${Number(card.schedule.easeFactor).toFixed(2)}, next ${card.schedule.nextReview || "not scheduled"}`
       ]) : ["No cards yet."]),
       "## Attempts",
-      ...(problem.attempts.length ? problem.attempts.map((attempt) => `- ${formatDateTime(attempt.createdAt)} · ${attempt.mode} · ${attempt.result} · ${attempt.timeMinutes || "?"} min · hints ${attempt.hintLevel} · approach unaided ${attempt.approachUnaided} · applicability ${attempt.justified} · proof ${attempt.proofSound} · implementation ${attempt.implementationCorrect} · unseen ${attempt.unseen} · near-miss distinction ${attempt.distinguishedNearMiss} · feedback basis ${attempt.validationSource || "Self-assessed"}${attempt.validationEvidence ? ` · feedback evidence: ${attempt.validationEvidence}` : ""}${attempt.nearMissResponse ? ` · near-miss response: ${attempt.nearMissResponse}` : ""}`) : ["No attempts logged." ]),
+      ...(problem.attempts.length ? problem.attempts.map((attempt) => `- ${formatDateTime(attempt.createdAt)} · ${attempt.mode} · ${attempt.result} · ${attempt.timeMinutes || "?"} min · ${attempt.hintExposureCount ?? "legacy"} timestamped cue events (highest ${attempt.hintLevel ?? "unknown"}) · approach unaided ${attempt.hintExposureSource === "timestamped-events" ? attempt.approachUnaided : "unknown (legacy report)"} · applicability ${attempt.justified} · proof ${attempt.proofSound} · implementation ${attempt.implementationCorrect} · unseen ${attempt.unseen} · near-miss distinction ${attempt.distinguishedNearMiss} · feedback basis ${attempt.validationSource || "Self-assessed"}${attempt.diagnosisCandidates?.length ? ` · low-confidence diagnosis candidates: ${attempt.diagnosisCandidates.map((candidate) => candidate.label).join(", ")}` : ""}${attempt.validationEvidence ? ` · feedback evidence: ${attempt.validationEvidence}` : ""}${attempt.nearMissResponse ? ` · near-miss response: ${attempt.nearMissResponse}` : ""}`) : ["No attempts logged." ]),
       "## Hint events",
       ...(problem.hintEvents.length ? problem.hintEvents.map((event) => `- Cue ${event.hintLevel} on ${formatDateTime(event.createdAt)}: ${event.learnerResponse}`) : ["No hints shown." ]),
+      "## Possible recovery signals",
+      ...(recoveryRecords.length ? recoveryRecords.map(({ attempt, candidate }) => "- " + formatDateTime(attempt.createdAt) + " · " + candidate.recoveryLabel + " · low confidence; from earlier attempt(s): " + candidate.recoveredFromAttemptIds.join(", ") + " · evidence: " + candidate.evidence) : ["No explicit recovery signals recorded." ]),
       "## Review events",
       ...(workspace.reviewEvents.filter((event) => event.problemId === problem.id).length
         ? workspace.reviewEvents.filter((event) => event.problemId === problem.id).map((event) => `- ${formatDateTime(event.reviewedAt)} · quality ${event.quality} · ${event.mode} · recall: ${event.recallAttempt}`)
@@ -896,14 +1067,22 @@
   }
 
   async function importBackup(file) {
+    let controlsLocked = false;
     try {
       const raw = JSON.parse(await file.text());
-      if (![1, 2].includes(raw?.version)) throw new Error("This file is not a supported CP workspace backup.");
+      if (![1, 2, 3].includes(raw?.version)) throw new Error("This file is not a supported CP workspace backup.");
       if (!window.confirm("Replace this browser's current problem library with the selected backup? Export the current library first if you may need it.")) return;
-      workspace = Core.normalizeWorkspace(raw);
-      activeProblemId = workspace.activeProblemId;
+      const restored = Core.normalizeWorkspace(raw);
+      clearTimeout(saveTimer);
+      saveTimer = null;
+      setImportLock(true);
+      controlsLocked = true;
+      await persistSnapshot(cloneSnapshot(restored), { replace: true, propagate: true });
+      workspace = restored;
+      activeProblemId = restored.activeProblemId;
       viewMode = "learner";
-      await persistWithoutFieldUpdate();
+      setImportLock(false);
+      controlsLocked = false;
       renderEverything();
       setViewMode("learner");
       $("libraryStatus").textContent = "Backup restored.";
@@ -911,6 +1090,7 @@
     } catch (error) {
       $("libraryStatus").textContent = `Import failed: ${error.message}`;
     } finally {
+      if (controlsLocked) setImportLock(false);
       $("importFile").value = "";
     }
   }
@@ -919,6 +1099,7 @@
     const problem = activeProblem();
     const f = problem.fields;
     const recurring = Core.getRecurringMistakes(workspace).map((node) => ({ label: node.label, problems: node.problems.map((item) => item.problem.fields.problemTitle) }));
+    const suspectedRecurring = Core.getRecurringDiagnoses(workspace);
     const recentAttempts = workspace.problems.flatMap((item) => item.attempts.map((attempt) => ({
       problemTitle: item.fields.problemTitle || "Untitled problem",
       problemId: item.fields.problemId || item.id,
@@ -927,16 +1108,24 @@
       mode: attempt.mode,
       patternId: attempt.patternId,
       unseen: attempt.unseen,
+      problemKey: attempt.problemKey,
+      firstAttemptForIdentity: attempt.firstAttemptForIdentity,
+      transferEligible: attempt.transferEligible,
       hintLevel: attempt.hintLevel,
+      hintExposureCount: attempt.hintExposureCount,
+      hintExposureSource: attempt.hintExposureSource,
+      hintEventIds: attempt.hintEventIds,
       approachUnaided: attempt.approachUnaided,
       applicabilityExplained: attempt.justified,
       proofSelfRatedSound: attempt.proofSound,
       implementationMarkedCorrect: attempt.implementationCorrect,
       distinguishedNearMiss: attempt.distinguishedNearMiss,
+      diagnosisCandidates: attempt.diagnosisCandidates,
+      recoveryCandidates: attempt.recoveryCandidates,
       validationSource: attempt.validationSource
     }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 20);
     const transfer = Core.transferMetrics(workspace);
-    return `Analyze this competitive-programming problem for a coach-side reasoning dataset. The learner must get a cold attempt first. Do not claim to know an expert's private thoughts or enumerate every possible failure. Separate observed learner behavior from derived, reconstructed, and hypothetical branches. Use sources and verify constraints and complexity. Include typed graph candidates with problem links, counterfactual/near-miss checks, a progressive hint ladder, attempt success dimensions, and only reusable pattern cards. Never diagnose the learner from a verdict alone. Treat self-entered ratings as reported evidence, not verified proof.\n\n## Problem\nTitle: ${f.problemTitle || "Unknown"}\nPlatform/ID: ${[f.platform, f.problemId].filter(Boolean).join(" / ") || "Unknown"}\nDifficulty: ${f.difficulty || "Unknown"}\nTags: ${f.topicTags || "Unknown"}\nURL: ${f.problemUrl || "Not supplied"}\n\n## Statement\n${f.problemText || "Not supplied"}\n\n## Attempt shared so far\n${f.attemptNotes || "No attempt notes supplied"}\n\n## Cross-problem memory\n${JSON.stringify({ recurringMistakes: recurring, currentGraph: workspace.graph.nodes.map(({ id, type, label, problemIds }) => ({ id, type, label, problemIds })), recentAttempts, transferEvidence: { eligibleUnseenAttempts: transfer.eligible, independentApproach: transfer.unpromptedRecognition, applicabilityExplained: transfer.applicabilityJustified, proofSelfRatedSound: transfer.proofSound, implementationMarkedCorrect: transfer.implementationCorrect, accepted: transfer.solved, judgeAccepted: transfer.judgeAccepted, coachReviewedProof: transfer.coachReviewed } }, null, 2)}\n\n## Current model\nGoal: ${f.goal || "Not supplied"}\nConstraints: ${f.constraints || "Not supplied"}\nBaseline: ${f.baseline || "Not supplied"}\n\n## Counterfactual design\nCurrent near-miss: ${f.nearMissProblem || "Not prepared"}\nLearner question: ${f.nearMissQuestion || "Not prepared"}\nExpected distinction: ${f.nearMissReason || "Not prepared"}\n\nReturn structured Markdown for the coach. Mark unknowns instead of inventing them. Include a concise source list.`;
+    return `Analyze this competitive-programming problem for a coach-side reasoning dataset. The learner should get a cold attempt after the coach prepares the cues. Do not claim to know an expert's private thoughts or enumerate every possible failure. Separate observed learner behavior from derived, reconstructed, and hypothetical branches. Use sources and verify constraints and complexity. Include typed graph candidates with problem links, counterfactual/near-miss checks, a progressive hint ladder, attempt success dimensions, and only reusable pattern cards. Treat automatic mistake matches as low-confidence prompts for review, never as confirmed diagnoses. Treat unseen status and self-entered ratings as learner reports, not verified proof.\n\n## Problem\nTitle: ${f.problemTitle || "Unknown"}\nPlatform/ID: ${[f.platform, f.problemId].filter(Boolean).join(" / ") || "Unknown"}\nDifficulty: ${f.difficulty || "Unknown"}\nTags: ${f.topicTags || "Unknown"}\nURL: ${f.problemUrl || "Not supplied"}\n\n## Statement\n${f.problemText || "Not supplied"}\n\n## Attempt shared so far\n${f.attemptNotes || "No attempt notes supplied"}\n\n## Cross-problem memory\n${JSON.stringify({ recurringMistakes: recurring, lowConfidenceRecurringDiagnosisCandidates: suspectedRecurring, currentGraph: workspace.graph.nodes.map(({ id, type, label, problemIds }) => ({ id, type, label, problemIds })), recentAttempts, transferEvidence: { uniqueFirstSeenUnseenAttempts: transfer.eligible, unseenClaims: transfer.unseenClaims, repeatedProblemAttemptsExcluded: transfer.repeatedProblemAttempts, unknownProblemIdentityClaimsExcluded: transfer.unknownProblemIdentityClaims, eventDerivedIndependentApproach: transfer.unpromptedRecognition, applicabilityExplained: transfer.applicabilityJustified, proofSelfRatedSound: transfer.proofSound, implementationMarkedCorrect: transfer.implementationCorrect, accepted: transfer.solved, judgeAccepted: transfer.judgeAccepted, coachReviewedProof: transfer.coachReviewed } }, null, 2)}\n\n## Current model\nGoal: ${f.goal || "Not supplied"}\nConstraints: ${f.constraints || "Not supplied"}\nBaseline: ${f.baseline || "Not supplied"}\n\n## Counterfactual design\nCurrent near-miss: ${f.nearMissProblem || "Not prepared"}\nLearner question: ${f.nearMissQuestion || "Not prepared"}\nExpected distinction: ${f.nearMissReason || "Not prepared"}\n\nReturn structured Markdown for the coach. Mark unknowns instead of inventing them. Include a concise source list.`;
   }
 
   async function copyPrompt() {
@@ -983,7 +1172,10 @@
     $("librarySearch").addEventListener("input", renderLibrary);
     $("recordAttemptButton").addEventListener("click", () => { void recordAttempt(); });
     $("attemptPattern").addEventListener("change", renderTransferSummary);
-    $("modeToggle").addEventListener("click", () => setViewMode(viewMode === "learner" ? "coach" : "learner"));
+    $("modeToggle").addEventListener("click", () => {
+      const nextMode = viewMode === "learner" ? "coach" : "learner";
+      void queuePersist().then(() => setViewMode(nextMode));
+    });
     $("addGraphNodeButton").addEventListener("click", addGraphNodeFromForm);
     $("addGraphEdgeButton").addEventListener("click", addGraphEdgeFromForm);
     $("addPatternButton").addEventListener("click", () => { void addPatternCard(); });

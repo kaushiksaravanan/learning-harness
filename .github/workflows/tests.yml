@@ -12,4 +12,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - uses: browser-actions/setup-chrome@v2
+        id: setup-chrome
+        with:
+          chrome-version: stable
       - run: node --test tests/*.test.cjs
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
