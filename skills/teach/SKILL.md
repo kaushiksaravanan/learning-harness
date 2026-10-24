@@ -1,6 +1,6 @@
 ---
 name: teach
-description: Teach the user anything so it actually locks in and is understood, not just memorized. Use ANY time you're explaining or teaching him something — even a quick explanation. Based on two teaching principles he has personally verified to work for years.
+description: Teach competitive programming so algorithmic ideas, problem patterns, proofs, and implementation habits stick. Use for competitive programming study, problem-solving practice, editorial review, debugging, and contest preparation.
 ---
 
 # Teaching
@@ -136,69 +136,83 @@ Repeat this full loop per node — don't front-load all the foundations once at 
 
 If you catch yourself asserting a fact he'd have to take on faith — foundational or not — stop: either motivate it and confirm it lands, or ground it in something already established. Unmotivated, unconfirmed facts don't lock in — that's the whole point.
 
-## Problem-solving track — build pattern recognition and transfer
+## Competitive-programming track — build pattern recognition and transfer
 
-Use this track when the goal is solving problems in a domain. It supplements the probe → plan → teach process above. The aim is to help him recognize and apply useful patterns in that domain, not to promise that one set of examples will make him an expert or transfer automatically to unrelated fields.
+Use this track for competitive-programming study. It supplements the probe → plan → teach process above. The aim is to help him recognize and apply algorithmic patterns across competitive-programming problems, not to promise that one set of examples will make him an expert.
 
 Keep two related graphs distinct:
 
-- The **concept graph** shows which principles and prerequisites support an idea.
-- The **problem-pattern graph** shows which cues suggest a strategy, why it works, where it applies, and which nearby strategies or failure cases can be confused with it.
+- The **concept graph** shows which mathematical facts, data structures, invariants, and proof ideas support an algorithm.
+- The **problem-pattern graph** connects statement and constraint cues to candidate algorithms, proof obligations, complexity, implementation choices, and nearby failure cases.
 
 ### Capture patterns from expert work
 
-For each problem, first construct a sound expert solution trace: what the solver notices, what they consider, why they choose each move, what they rule out, and what makes the solution valid. Use several problems or solvers where possible. A polished explanation written after solving can omit tacit steps, so mark inferred explanations as hypotheses until examples support them.
+For each problem, first construct a sound competitive-programming solution trace: how the solver interprets the statement and constraints, estimates the needed complexity, chooses an algorithm or data structure, proves it correct, and turns it into code. Capture alternatives they consider and reject, implementation decisions, and tests that would expose a bug. Use several problems or solvers where possible. A polished editorial written after solving can omit tacit steps, so mark inferred explanations as hypotheses until examples support them.
+
+For every problem studied, build a per-problem reasoning record using [`templates/cp-problem-analysis.md`](templates/cp-problem-analysis.md) and save the filled copy in the learner's existing study note. The record is the source dataset for later teaching and card creation. Populate it before teaching when sources permit; update it after seeing the learner's actual work. Never put learner-specific records into this shared skill directory.
+
+The record must include the problem model and constraints, prerequisite concepts and their links, the successful solution path, tacit routines an expert may execute automatically, competing approaches, and the failure/recovery graph. Simulate at least three materially different routes when they exist: a straightforward or brute-force route, a tempting alternative, and the successful route. For each, show how the solver could reach the next decision, what makes the route viable or where it breaks, and the actual constraint, invariant, counterexample, or complexity argument that decides it. Add more routes only when they expose a meaningful choice. Mark reported expert actions separately from reconstructed or hypothetical reasoning.
+
+Trace the successful route at decision points, not merely at algorithm-name level. Include how values and state flow through the solution: what each variable/data structure represents, when it changes, what is returned, and what must be cached or invalidated. Include routine moves that may have become second nature, such as maintaining an invariant, preserving original indices, resetting per-test-case state, checking a predicate's monotonicity, or selecting a wider integer type. State why each move is safe and what symptom appears if it is missed.
 
 For each pattern, record:
 
-- **Cues:** observable features that suggest the pattern.
-- **Reason:** the principle or constraint that makes the approach work.
-- **Conditions:** prerequisites and when the pattern applies.
-- **Procedure:** the key decisions or steps, not just the final answer.
-- **Boundaries:** counterexamples and signs that another pattern is needed.
-- **Examples:** links to the problems where it appeared, including useful near-misses.
-- **Learner errors:** the specific selection, knowledge, reasoning, execution, or checking mistakes he makes.
+- **Cues:** statement structure, operations, constraints, and limits that suggest the pattern; separate meaningful cues from distracting story details.
+- **Reason:** the invariant, recurrence, exchange argument, monotonicity, graph property, or other idea that makes the approach work.
+- **Conditions:** prerequisites, assumptions, and input sizes under which it applies.
+- **Procedure:** the key decisions, proof outline, complexity analysis, and implementation choices.
+- **Boundaries:** counterexamples and signs that another algorithm or data structure is needed.
+- **Examples:** links to the source problems, including near-misses and alternative valid solutions.
+- **Learner errors:** the specific modeling, algorithm-choice, proof, complexity, implementation, or verification mistakes he makes.
 
 Connect patterns only when the relationship is meaningful: prerequisite, alternative, shares a principle, easily confused with, or fails under. Keep uncertain explanations marked as uncertain. The graph should help choose and distinguish strategies; do not make him memorize a large list of labels.
 
 ### Reconstruct how the pattern could be learned
 
-For each important pattern, map the plausible routes by which a person could discover or learn it, not only the route used to solve today's problem. If the expert can describe their actual learning history, capture it as reported. Otherwise label routes as reconstructions; do not invent a personal history for the expert. Explore routes that fit the domain and problem, such as:
+For each important pattern, map plausible routes by which a solver could discover or learn it, not only the route used to solve today's problem. If the expert can describe their actual learning history, capture it as reported. Otherwise label routes as reconstructions; do not invent a personal history for the expert. Explore routes that fit the problem, such as:
 
-- **First principles:** start from known facts and constraints, then derive why the pattern must work.
-- **Elimination:** list plausible approaches, use the problem's constraints to rule out candidates one by one, and explain why the survivor fits. Do not eliminate an approach without a specific contradiction or failed condition.
-- **Analogy:** connect a previously solved problem to this one by naming the shared structure and the important difference.
-- **Attempt and feedback:** show an initial attempt, the evidence that exposes its flaw, and the correction that produces the pattern.
-- **Instruction to understanding:** state what a teacher or reference might supply, then trace how the learner can ground that rule in a reason, condition, or example.
+- **First principles:** start from the statement, definitions, and constraints; derive a simple model, invariant, recurrence, or proof obligation.
+- **Constraint-based elimination:** compare brute force and candidate approaches against time and memory limits. Rule out an approach only when its complexity or assumptions demonstrably fail.
+- **Analogy:** connect a previously solved problem through its shared invariant, state transition, or data structure, then state the important difference.
+- **Attempt and judge feedback:** use WA, TLE, MLE, or RE as evidence to investigate, not as a diagnosis by itself; identify the counterexample or resource bottleneck and derive a correction.
+- **Editorial or instruction to understanding:** take a known algorithmic idea and ground it in a proof, condition, or small example rather than asking him to memorize the label.
 
 For each route, record its starting knowledge, key question or decision, decisive clue, intermediate reasoning, and the pattern it reaches. Mark which prerequisites it needs and how confident the reconstruction is. Several routes may reach the same pattern; use the route that connects best to the learner's current knowledge, and use other routes as alternatives when he is stuck or needs a different explanation. Cover the plausible routes that add understanding, without claiming a literally exhaustive list.
 
-### Simulate each problem's failure paths
+### Build the failure and recovery graph
 
-After constructing the successful trace, simulate plausible ways this specific problem can go wrong. Walk its decision points and branch into relevant alternatives, including a tempting but wrong pattern, a valid pattern used outside its conditions, a skipped prerequisite or step, and likely execution slips such as sign, arithmetic, unit, variable, or boundary-case errors. Include mistakes from the learner's history when this problem could trigger them, including errors he has already learned to catch.
+After constructing the successful trace, walk every important decision and simulate realistic ways this specific problem can fail. Cover the relevant layers: statement interpretation and aggregate constraints; concept or state modeling; algorithm choice, proof, and optimization; time, memory, and stack limits; edge cases; implementation; and verification. Follow data from input through intermediate state to output. Check for using the wrong variable or source data, omitting an update, returning the wrong value or object, caching stale/wrong data, and choosing a correct but too-slow or memory-heavy approach. Also consider an unsupported greedy choice, a non-monotone binary-search check, a missing DP state or transition, incorrect graph visitation state, overflow (for example, `n * (n + 1) / 2` in a narrow integer type), modulo errors, index bounds, sorting without preserving original indices, duplicates, singleton inputs, stale adjacency state across test cases, and mistaking sample success for proof. Include time-versus-memory trade-offs and constraints that are easy to overlook, such as sums across test cases.
 
-For each useful failure branch, record the trigger, the mistaken move, why it is tempting, the earliest clue that exposes it, and a prevention or recovery check. Link a known learner mistake to the earlier problem where it was observed and record what correction the learner has since learned. Label branches as learner-observed, commonly plausible, or hypothetical; never present a simulated mistake as something he actually made. Aim to cover every plausible, instructionally relevant branch you can identify, while being honest that no list can guarantee every imaginable failure. Omit arbitrary edge cases that do not teach a useful distinction.
+Represent each useful branch in the dataset as:
 
-Do not show the full failure tree before the attempt. Use it to select a small starting retrieval cue, offer a targeted hint when needed, and compare the learner's actual path with the simulated branches afterward. If a known mistake is now well learned, test whether he catches it when relevant instead of teaching it from scratch again.
+`trigger → mistaken assumption or action → why it seems plausible → earliest warning → prevention or test → recovery → linked prior problems`
+
+The expert's checklist should have checks before choosing an algorithm (What does brute force cost? Which constraint rules it out?), before coding (What invariant or state makes this correct?), before submitting (Which boundary and worst-case tests are still untested?), and after a judge result (What smallest counterexample or resource bottleneck distinguishes likely causes?). Include the exact thought or quick paper test that catches each failure early.
+
+Do not treat every simulated route as an actual expert memory. The dataset can contain a reported expert move, a reconstruction consistent with the solution, or a hypothetical failure branch; label which one it is and how strongly the problem/editorial/code supports it. The point is to produce useful, auditable teaching material, not to claim access to private thoughts.
+
+Link observed learner mistakes to the earlier problem and the correction they learned. Label every branch as learner-observed, commonly plausible, or hypothetical; never present a simulated mistake as something he actually did. Cover realistic, high-value branches without claiming a literally exhaustive failure tree. Omit arbitrary edge cases that teach no useful distinction.
+
+The tutor can react only to reasoning, code, or judge feedback the learner shares or an available tool exposes. Ask for checkpoints when he is solving offline; never claim to watch unseen work. Keep the full graph hidden during the attempt. Use it to recognize a branch as soon as it appears in shared work, then surface only that branch's trigger. If a known mistake is now well learned, test whether he catches it instead of teaching it again.
 
 ### Run the problem attempt
 
-1. Choose a problem that uses one or two patterns he is ready to practice. Present the problem by itself and let him make a genuine first attempt before surfacing a pattern card or naming a solution. If he gets stuck, show only the front of the most relevant card and ask him to retrieve the pattern and explain why it fits; keep the answer side hidden until he has tried.
-2. Keep the struggle useful and bounded. If he is stuck, give one progressively stronger hint at a time: point to a relevant cue → name a candidate pattern → suggest the next decision → show a worked step or solution. Do not keep withholding help. If frustration is rising, reduce the difficulty, take a break, or return to a related example.
-3. Compare his actual solution path with the simulated success and failure branches. Identify whether an error came from choosing the wrong pattern, missing a prerequisite, applying a valid idea incorrectly, making an execution slip, or failing to check the result. Ask what clue or condition would change his choice next time.
-4. Update the pattern graph with evidence from this attempt. Connect the problem to the relevant pattern and record a learner error only when it is actually observed; keep hypothetical branches labeled as such. After feedback, have him explain why the approach fit, which failure clue mattered, and when the pattern would not fit.
-5. Fade support across examples: a worked example, then a partially completed example, then an independent problem. Mix related patterns and include near-misses that look similar but require a different choice.
+1. Choose a problem from a curated difficulty ladder or a recent contest, at the edge of his current ability. In study mode, set a reasonable effort window—often about 15–40 minutes, adjusted for the problem and his experience—and present the problem by itself. Let him attempt it before surfacing a pattern card or naming an algorithm. In contest mode, preserve the timed attempt and defer hints and editorial review until the contest ends or he switches modes.
+2. Surface a card only when he is clearly stalled, enters a known failure branch in the work he shares, or reaches the agreed effort limit. Show only its trigger/front. Ask him to recall the failure mode, early-warning check, and recovery move before showing the back. If he is still making progress, let him continue without interruption. Escalate help one step at a time: restate a constraint → ask about brute-force complexity → expose a pattern cue → point to a proof or state gap → offer a pseudocode fragment or partial step. Never paste a full editorial or complete solution. After a bounded attempt, work through missing reasoning one step at a time and ask him to derive or implement each next step.
+3. Compare his actual solution path with the simulated success and failure branches. Separate modeling, algorithm choice, correctness proof, complexity analysis, implementation, and verification errors. Treat judge outcomes as clues: for example, investigate both logic and coding for WA, resource use for TLE/MLE, and bounds or recursion for RE.
+4. Have him state the algorithm's invariant, recurrence, or proof; estimate time and memory; then implement and check edge cases. When practical, test small cases and compare against a simple brute-force solution. Update the graph only with errors actually observed, and keep hypothetical branches labeled as such.
+5. Teach from the completed problem record: connect the needed concepts, reconstruct why the successful approach fits, and compare it with the alternatives—why they seemed plausible, and whether they fail correctness, constraints, or only optimization. Have him explain the failure clue and recovery move in his own words. Fade support across examples: a worked example, then a partially completed example, then an independent problem. Once a pattern is being recalled reliably, deliberately assign a twist problem that looks similar but violates one condition or requires a different approach.
 
 The `quiz` tool is options-only, so use it for focused, gradable checks such as recognizing a cue or distinguishing two candidate patterns. Use a normal problem prompt and review his written solution in chat for open-ended, multi-step solving; do not reduce every solution to multiple choice. A correct answer alone does not show that he recognized the pattern or can transfer it.
 
 ### Make pattern cards from the graph
 
-Create a card when a reasoning move is reusable and can be tested with one focused retrieval prompt. Do not make a separate card for every tiny step or hypothetical failure. The graph holds the full relationships; cards provide short retrieval entry points into it.
+Create a card when a reasoning move or failure-and-recovery move is reusable and can be tested with one focused retrieval prompt. Derive cards from the per-problem dataset, not from a generic list alone. Use cards for problem recognition, algorithm or data-structure templates, common traps, complexity triggers, early warnings, and recovery moves. Card families can include approach failures, implementation traps, edge cases, early-warning checks, and judge-result recovery. Do not make a separate card for every tiny step or hypothetical failure. The graph holds the full relationships; cards provide short retrieval entry points into it.
 
-- **Front:** a short scenario, decision point, or fragment that cues the pattern without naming it. Ask what move fits and why. Use a known learner error as the trigger when relevant.
-- **Back:** the pattern name; its reason and conditions; the failure mode it helps avoid; one early warning or checking move; one linked pattern that may follow; and a concrete prior problem plus a near-miss or counterexample.
+- **Front:** a short statement fragment, operation pattern, code fragment, failed approach, judge verdict, or decision point, paired with relevant constraints but without the answer. Ask for the likely failure or pattern and the next check/recovery move.
+- **Back:** the algorithm or data structure; its core invariant, recurrence, or proof idea; applicability conditions; time and memory complexity; the failure's cause and earliest warning; the prevention, test, or recovery move; one linked pattern that may follow; and 1–3 linked problems with their platform IDs or links and the shared structural clue, including a near-miss or counterexample.
 
-Use several fronts for a pattern only when they test meaningfully different cues. Keep cue strength separate from the SM-2 interval: after successful retrievals, gradually make the front less explicit; after a failed retrieval, use a clearer cue sooner on the next similar problem, while still asking him to retrieve before showing the back.
+Use several fronts for a pattern only when they test meaningfully different cues. For example, a front can ask for an algorithm from a partial statement and constraints, identify a likely binary-search bug from a failed check, or retrieve a previous problem from its key invariant. Keep cue strength separate from the SM-2 interval: after successful retrievals, gradually make the front less explicit; after a failed retrieval, use a clearer cue sooner on the next similar problem, while still asking him to retrieve before showing the back.
 
 ### Persist and space pattern reviews
 
@@ -206,11 +220,11 @@ Keep the pattern graph and review state in the learner's existing linked Markdow
 
 Review a learned pattern later with a fresh problem or cue that requires him to retrieve the pattern, explain why it applies, and use it. Hide the pattern name and solution until he has attempted recall. Prefer a changed surface form or a contrast with a nearby pattern over repeating the exact worked example. A due review is practice, not a reason to derail the learner's current goal.
 
-Use SM-2 as a review scheduler, not as a measure of expertise. Track `repetitions`, `interval_days`, `ease_factor` (start at 2.5), and `next_review` for each review item. Rate retrieval of the thinking move separately from the final problem answer: a correct answer reached by the wrong reasoning is a failed pattern retrieval; a sound pattern choice followed by an arithmetic slip can be a successful pattern retrieval plus a separate execution error. Rate only patterns he actually attempted to retrieve, not hidden hypothetical branches.
+Use SM-2 as a review scheduler, not as a measure of expertise. Track `repetitions`, `interval_days`, `ease_factor` (start at 2.5), `next_review`, and review mode (`timed` or `untimed`) for each review item. After the solve or effort window, revisit each failure mode he entered or nearly entered, one at a time, and ask him to retrieve its cause, early warning, and recovery. Rate retrieval separately from the final problem answer and from whether the mistake occurred: catching a trap is successful retrieval; falling into it but independently recovering can still show partial retrieval; needing the card's answer is a failed retrieval. Record timed and untimed performance separately, and do not treat untimed success as evidence of timed mastery. Rate only failure modes he actually encountered, nearly encountered, or was explicitly prompted to retrieve—not untouched hypothetical branches.
 
 After each card retrieval, rate quality from 0–5: 5 = correct with a clear reason and little effort; 4 = correct with some hesitation; 3 = correct with substantial effort; 0–2 = incorrect, needed a hint, or could not retrieve. Then update the ease factor with `EF' = max(1.3, EF + 0.1 - (5 - q) × (0.08 + (5 - q) × 0.02))`, where `q` is the quality rating. For `q < 3`, reset repetitions to 0 and schedule 1 day later. For `q ≥ 3`, increment repetitions and schedule 1 day after the first success, 6 days after the second, then `round(previous interval × EF')` days after later successes. Record the resulting date in the learner's local calendar. Keep importance or priority as a separate field; do not alter ease factor to protect a high-value card.
 
-When a failed card is relevant to a later problem, surface its cue immediately after the learner's first attempt on the next similar problem, then fade it again after successful retrieval. When the graph shows a reliable sequence such as pattern A leading to pattern B, review them as a short linked pair, but keep each retrieval and rating separate. At a natural checkpoint after roughly 5–10 problems, run a brief mixed review of due or high-priority cards, including some context-free prompts, then return to problem application. Tag evidence by domain; call a pattern cross-domain only after it succeeds on unfamiliar problems in more than one domain.
+When a failed card is relevant to a later problem, surface its cue immediately after the learner's first attempt on the next similar problem, then fade it again after successful retrieval. When the graph shows a reliable sequence such as pattern A leading to pattern B, review them as a short linked pair, but keep each retrieval and rating separate. Maintain both directions of the index: each pattern links to its source and twist problems, and each problem lists its tested patterns. At a natural checkpoint after roughly 5–10 problems, run a brief mixed review of due or high-priority cards, including statement-to-algorithm, proof, complexity, and bug-finding prompts, then return to full problem application. Tag evidence by competitive-programming topic; call a pattern broadly reusable only after it succeeds on unfamiliar problems across multiple topic families.
 
 SM-2 helps space retrieval; it does not prove transfer. Check transfer with delayed, unhinted problems he has not seen before, including problems that require distinguishing the target pattern from a similar one.
 
