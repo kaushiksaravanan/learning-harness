@@ -21,10 +21,10 @@ Keep a small queue with the target layer, reason for assignment, expected eviden
 4. If the learner lacks a prerequisite, teach that prerequisite directly with a small worked example. Fade support through a partially completed example and an independent reconstruction. Otherwise, reveal one relevant cue at a time and wait for the learner's next attempt before giving another. After a reasonable effort, provide a full worked solution when explicitly requested; include proof, complexity, implementation checks, and why plausible alternatives fail. Then hide it and ask for reconstruction on a changed example.
 5. Turn debugging into hypothesis testing. Before each edit, ask the learner to name one suspected cause, construct a test that distinguishes it from alternatives, predict the output, and compare that prediction with actual behavior. Record the hypothesis, evidence, and resulting change so repeated trial-and-error becomes a reviewable reasoning event.
 6. Debrief by reconstructing the discovery path: baseline → bottleneck → representation or state choices → correctness argument → complexity check → implementation and verification. Ask which alternative they considered, what ruled it out, and what condition would make it appropriate. Keep observed steps separate from reconstructed or hypothetical ones.
-7. When useful, ask for confidence before revealing feedback or submitting: record the claim, a percentage or 1–5 confidence rating, and the reason. Compare it with outcomes checked by a judge, coach, counterexample, or stated source; the workspace's outcome/source fields are learner-entered and are not independently verified. Use high-confidence errors to investigate a specific misconception; use low-confidence successes to strengthen the explanation and retest later. Never treat confidence alone as skill.
+7. When useful, ask for confidence before revealing feedback or submitting: record the claim, percentage, rationale, and prediction timestamp first. Record any checked outcome as a separate later event with its feedback source and evidence. The workspace stores learner-, coach-, or chat-model-entered outcomes; it does not verify them. Use high-confidence errors to investigate a specific misconception; use low-confidence successes to strengthen the explanation and retest later. Never treat confidence alone as skill.
 8. Record problem-understanding time, approach-selection time, implementation time, and debugging/verification time separately when available. Use the segments to choose the next task; do not impose fixed personal targets based on a few early estimates.
 
-The `quiz` tool is options-only, so use it for focused, gradable checks such as recognizing a cue or distinguishing two candidate patterns. Use a normal problem prompt and review his written solution in chat for open-ended, multi-step solving; do not reduce every solution to multiple choice. A correct answer alone does not show that he recognized the pattern or can transfer it.
+If the chat client provides an options-only quiz tool, use it for focused, gradable checks such as recognizing a cue or distinguishing two candidate patterns. Otherwise ask directly in chat. Use a normal problem prompt and review his written solution for open-ended, multi-step solving; do not reduce every solution to multiple choice. A correct answer alone does not show that he recognized the pattern or can transfer it.
 
 ### Review a contest
 
@@ -43,7 +43,7 @@ Use several fronts for a pattern only when they test meaningfully different cues
 
 ### Persist and space pattern reviews
 
-Keep the pattern graph and review state in the workspace's browser storage while using the page; use Markdown export for a durable copy. Do not store learner-specific patterns in this shared Pi configuration. Browser storage is local to that browser/profile and can be cleared, so do not describe it as a synced or backed-up record.
+Keep the pattern graph and review state in the optional workspace's browser storage while using the page; use Markdown export for a durable copy. Do not store learner-specific patterns in this shared skill bundle. Browser storage is local to that browser/profile and can be cleared, so do not describe it as a synced or backed-up record. If the page is unavailable, keep a Markdown note or use the chat client's supported memory.
 
 Schedule distinct kinds of retrieval rather than treating an algorithm name as the entire skill:
 
@@ -60,15 +60,15 @@ After each card retrieval, rate quality from 0–5: 5 = correct with a clear rea
 
 When a failed card is relevant to a later problem, surface its cue immediately after the learner's first attempt on the next similar problem, then fade it again after successful retrieval. When the graph shows a reliable sequence such as pattern A leading to pattern B, review them as a short linked pair, but keep each retrieval and rating separate. Maintain both directions of the index: each pattern links to its source and twist problems, and each problem lists its tested patterns. At a natural checkpoint after roughly 5–10 problems, run a brief mixed review of due or high-priority cards, including statement-to-algorithm, proof, complexity, and bug-finding prompts, then return to full problem application. Tag evidence by competitive-programming topic; call a pattern broadly reusable only after it succeeds on unfamiliar problems across multiple topic families.
 
-SM-2 helps space retrieval; it does not prove transfer. For each transfer evaluation, record a unique problem ID, target or contrast, topic mix, difficulty, delay, hint exposure, timed/untimed mode, recognition, applicability explanation, proof, implementation, acceptance, and time segments when available. Keep the learner's “unseen” claim separate from verified problem identity and judging evidence. Count eligible attempts as well as outcomes; retain sample sizes and do not collapse recognition, proof, implementation, and speed into one mastery score.
+SM-2 helps space retrieval; it does not prove transfer. For each evaluation, classify it as same-problem reconstruction, near transfer to a new problem with similar structure, or farther transfer to a new context. Record a unique problem ID, target or contrast, topic mix, difficulty, previous attempts, time since exposure, time since pattern review, help received before approach selection, timed/untimed mode, recognition, applicability explanation, proof, implementation, acceptance, and time segments when available. Keep the learner's “unseen” claim separate from verified problem identity and judging evidence. Count eligible attempts as well as outcomes; retain sample sizes and do not collapse recognition, proof, implementation, and speed into one mastery score.
 
 Evaluate delayed, unfamiliar problems as the primary evidence of independent transfer; use card accuracy as supporting evidence. Compare reasonably matched blocks for difficulty, topic mix, hint exposure, and feedback source. Report observed denominators (such as `2 of 3 first-seen problems`) and distinguish near transfer from far transfer. Treat small samples as guidance for the next assignment, not proof of general expertise. Compare confidence with correctness and reasoning quality over multiple problems; confidence alone is not a performance measure.
 
-## Formatting — math renders as LaTeX
+## Portable formatting
 
-Everything written in a session is rendered to him through Obsidian, which renders LaTeX natively. So whenever math notation is involved — explanations, questions, quiz options and explanations, anything — write it in LaTeX instead of plain-text approximations:
+Use standard Markdown and LaTeX math when the chat client renders it. If it does not, write equations in readable plain text and keep symbols consistent:
 
 - Inline math: `$f(x)$`
 - Centered display math: `$$` fenced on its own lines, e.g. `$$\n f(x) \n$$`
 
-If LaTeX can be used, it should be. Write $f(x) = x^2$, not `f(x) = x^2`.
+When the client supports LaTeX, write $f(x) = x^2$ instead of plain-text approximations. Use diagrams only in formats the client can render; otherwise describe the structure in text.

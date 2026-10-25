@@ -480,30 +480,56 @@
               <div class="field"><label class="micro-label" for="attemptResult">Result</label><select class="select" id="attemptResult"><option>Unsolved</option><option>Partial</option><option>Solved</option><option>Wrong answer</option><option>Time limit</option><option>Runtime error</option></select></div>
               <div class="field"><label class="micro-label" for="attemptMinutes">Minutes</label><input class="input" id="attemptMinutes" type="number" min="0" step="1" placeholder="—"></div>
               <div class="field" style="grid-column: 1 / -1"><label class="micro-label" for="attemptPattern">Pattern tested, if known</label><select class="select" id="attemptPattern"><option value="">No pattern selected</option></select></div>
+              <div class="field"><label class="micro-label" for="transferDistance">Relationship to prior learning</label><select class="select" id="transferDistance"><option value="unknown">Not classified</option><option value="practice">Practice on a known idea</option><option value="reconstruction">Reconstruct a learned solution</option><option value="near">New problem, similar structure</option><option value="far">New problem, different context</option></select></div>
+              <div class="field"><label class="micro-label" for="priorExposureAt">Earlier exposure date, if known</label><input class="input" id="priorExposureAt" type="date"></div>
             </div>
-            <p class="field-hint" id="hintExposureStatus" role="status" aria-live="polite">Unaided recognition is derived from timestamped cue events, not a manual rating.</p>
+            <p class="field-hint" id="hintExposureStatus" role="status" aria-live="polite">Record what help you received before choosing the approach. Missing data stays unknown; no hint event does not prove independent work.</p>
             <details class="attempt-details">
               <summary>Reasoning checkpoint and targeted support</summary>
               <div class="field-grid">
                 <div class="field"><label class="micro-label" for="learningMode">Practice mode</label><select class="select" id="learningMode"><option>Discovery</option><option>Guided construction</option><option>First principles</option></select></div>
                 <div class="field"><label class="micro-label" for="attemptBlocker">What is blocking you?</label><select class="select" id="attemptBlocker"><option value="undetermined">Not sure yet</option><option value="problem-model">Understanding the problem</option><option value="mechanics">Working through a small example</option><option value="approach">Finding an approach</option><option value="proof">Justifying the approach</option><option value="implementation">Implementing or debugging</option><option value="complexity">Meeting time or memory limits</option><option value="recurring-mistake">A mistake I've made before</option><option value="prerequisite">A prerequisite concept</option><option value="independent">I'm progressing independently</option></select></div>
+                <div class="field"><label class="micro-label" for="helpBeforeApproach">Help received before choosing the approach</label><select class="select" id="helpBeforeApproach"><option value="unknown">Not recorded</option><option value="none">No help</option><option value="general-question">General question</option><option value="strategic-cue">Strategic cue</option><option value="partial-solution">Partial solution or worked step</option></select></div>
               </div>
               <div class="graph-insight" id="adaptiveIntervention" role="status" aria-live="polite">Choose the closest blocker to get one targeted prompt. Choose “progressing independently” to continue without interruption.</div>
               <div class="field" style="margin-top: 10px"><label class="micro-label" for="interventionResponse">What did you retrieve or try after that prompt?</label><textarea class="textarea short" id="interventionResponse" placeholder="Record your reasoning step, or leave this blank if you continued independently."></textarea></div>
               <div class="field-grid" style="margin-top: 10px">
+                <div class="field"><label class="micro-label" for="interventionEvaluation">Did the response meet its success criterion?</label><select class="select" id="interventionEvaluation"><option value="pending">Not evaluated</option><option value="met">Met</option><option value="partial">Partly met</option><option value="not-met">Not met</option><option value="unclear">Unclear evidence</option></select></div>
+                <div class="field"><label class="micro-label" for="interventionEvaluationSource">Who evaluated it?</label><select class="select" id="interventionEvaluationSource"><option value="other">Not recorded</option><option value="learner">Learner self-check</option><option value="coach">Coach</option><option value="chat-model">Chat model using the teach skill</option></select></div>
+              </div>
+              <div class="field" style="margin-top: 10px"><label class="micro-label" for="interventionEvidence">Evidence for the evaluation</label><textarea class="textarea short" id="interventionEvidence" placeholder="Quote the response feature, derivation, trace, test, or counterexample that supports this rating."></textarea></div>
+              <div class="field-grid" style="margin-top: 10px">
                 <div class="field"><label class="micro-label" for="focusLayer">Reasoning layer exercised</label><select class="select" id="focusLayer"><option value="">Not recorded</option><option value="definition">Definition and problem model</option><option value="mechanics">Mechanics on an example</option><option value="derivation">Derivation</option><option value="recognition">Recognition</option><option value="discrimination">Discrimination</option><option value="implementation">Implementation</option><option value="transfer">Transfer</option></select></div>
                 <div class="field"><label class="micro-label" for="focusResult">How independently?</label><select class="select" id="focusResult"><option value="untested">Not assessed</option><option value="independent">Independently</option><option value="with-cue">With a cue</option><option value="not-yet">Not yet</option></select></div>
               </div>
+              <div class="field-grid" style="margin-top: 10px">
+                <div class="field"><label class="micro-label" for="diagnosisReviewId">Text signal to review</label><select class="select" id="diagnosisReviewId"><option value="">No matched phrase</option></select></div>
+                <div class="field"><label class="micro-label" for="diagnosisReviewStatus">Diagnosis status</label><select class="select" id="diagnosisReviewStatus"><option value="unreviewed">Unreviewed</option><option value="mention-only">Mention only</option><option value="suspected">Suspected gap</option><option value="confirmed">Confirmed with evidence</option><option value="ruled-out">Ruled out</option><option value="self-corrected">Independently noticed and corrected</option></select></div>
+              </div>
+              <div class="field-grid" style="margin-top: 10px">
+                <div class="field"><label class="micro-label" for="diagnosisReviewSource">Who reviewed it?</label><select class="select" id="diagnosisReviewSource"><option value="other">Not recorded</option><option value="learner">Learner</option><option value="coach">Coach</option><option value="chat-model">Chat model using the teach skill</option></select></div>
+                <div class="field"><label class="micro-label" for="diagnosisReviewEvidence">Why this status?</label><input class="input" id="diagnosisReviewEvidence" placeholder="Evidence from the learner's explanation or work"></div>
+              </div>
             </details>
             <details class="attempt-details">
-              <summary>Confidence and hypothesis-led debugging</summary>
+              <summary>Confidence prediction and hypothesis-led debugging</summary>
               <div class="field"><label class="micro-label" for="confidenceClaim">A claim you want to check</label><input class="input" id="confidenceClaim" placeholder="e.g. This predicate is monotone, so binary search is valid"></div>
               <div class="field" style="margin-top: 10px"><label class="micro-label" for="confidenceReason">Why do you believe it?</label><textarea class="textarea short" id="confidenceReason" placeholder="State the evidence or reasoning behind your confidence"></textarea></div>
               <div class="field-grid" style="margin-top: 10px">
                 <div class="field"><label class="micro-label" for="confidencePercent">Confidence (0–100%)</label><input class="input" id="confidencePercent" type="number" min="0" max="100" step="1" placeholder="—"></div>
-                <div class="field"><label class="micro-label" for="confidenceOutcome">After checking the claim</label><select class="select" id="confidenceOutcome"><option value="unresolved">Not checked yet</option><option value="supported">Supported by evidence</option><option value="contradicted">Contradicted by evidence</option></select></div>
+                <div class="field" style="align-self: end"><button class="button button-secondary" id="saveConfidencePredictionButton" type="button">Save prediction before checking</button></div>
               </div>
-              <p class="field-hint">The descriptive comparison uses claims you mark as checked with a non-self feedback source. You enter both the outcome and source; the harness does not verify them. A judge verdict checks output, not a proof.</p>
+              <div class="field-grid" style="margin-top: 10px">
+                <div class="field"><label class="micro-label" for="confidencePredictionId">Saved prediction to evaluate</label><select class="select" id="confidencePredictionId"><option value="">No pending predictions</option></select></div>
+                <div class="field"><label class="micro-label" for="confidenceOutcome">After checking the claim</label><select class="select" id="confidenceOutcome"><option value="">Choose outcome</option><option value="supported">Supported by evidence</option><option value="contradicted">Contradicted by evidence</option></select></div>
+              </div>
+              <div class="field-grid" style="margin-top: 10px">
+                <div class="field"><label class="micro-label" for="confidenceValidationSource">Feedback source</label><select class="select" id="confidenceValidationSource"><option>Self-assessed</option><option>Online judge accepted</option><option>Counterexample tested</option><option>Coach reviewed proof</option><option>Official analysis checked</option></select></div>
+                <div class="field"><label class="micro-label" for="confidenceOutcomeEvidence">Outcome evidence</label><input class="input" id="confidenceOutcomeEvidence" placeholder="Judge case, proof review, source, or counterexample"></div>
+              </div>
+              <div class="review-actions" style="margin-top: 10px"><button class="button button-secondary" id="recordConfidenceOutcomeButton" type="button">Record checked outcome</button><span class="review-progress" id="confidenceStatus" role="status" aria-live="polite"></span></div>
+              <div class="attempt-history" id="confidenceHistory" aria-live="polite"></div>
+              <p class="field-hint">Predictions are timestamped before outcome entry. Only a later outcome with a non-self source enters the descriptive calibration summary; the harness does not verify the source. A judge verdict checks output, not a proof.</p>
               <div class="field-grid" style="margin-top: 10px">
                 <div class="field"><label class="micro-label" for="debugHypothesis">Suspected cause</label><input class="input" id="debugHypothesis" placeholder="What do you think is wrong?"></div>
                 <div class="field"><label class="micro-label" for="debugTest">Smallest distinguishing test</label><input class="input" id="debugTest" placeholder="Which input separates likely causes?"></div>
@@ -591,9 +617,9 @@
             <div class="section-heading"><div><h3>Attempt history</h3><p>Correctness and independent reasoning are tracked separately.</p></div></div>
             <div id="learnerAttemptSummary" class="attempt-history"></div>
           </div>
-          <div class="graph-insight" id="transferSummary">Transfer counts require an unseen claim and a unique platform/problem ID or URL.</div>
+          <div class="graph-insight" id="transferSummary">Classify reconstruction separately from near or farther transfer. New-problem counts require an unseen claim and unique problem ID or URL.</div>
           <div class="graph-insight" id="learningProgress">Log layer-specific evidence to get a reason-based next practice focus.</div>
-          <div class="graph-insight" id="confidenceSummary">Confidence calibration appears after a claim is checked with a recorded feedback source.</div>
+          <div class="graph-insight" id="confidenceSummary">Save a timestamped prediction before feedback, then record its checked outcome as a separate event.</div>
           <p class="field-hint">Learner mode hides the analysis during practice. This is a display gate, not password-protected storage.</p>
         </section>
 
@@ -669,7 +695,7 @@
           <div class="section-heading"><div><h3 id="hintPlanHeading">Prepared hint ladder</h3><p>One cue per line. Learner view reveals them in order and records the response between cues.</p></div></div>
           <label class="sr-only" for="hintLadder">Prepared hints</label>
           <textarea class="textarea tall" id="hintLadder" data-field="hintLadder" placeholder="1. Restate the relevant constraint as a question.&#10;2. Ask what the simple approach costs.&#10;3. Point to one structural cue, without naming the answer.&#10;4. Ask for the missing invariant or proof step.&#10;5. Offer one pseudocode step, not a full solution."></textarea>
-          <p class="field-hint">Prepared cues release in order. Low-confidence text rules can suggest a prompt from the attempt notes; they do not inspect code or confirm a diagnosis.</p>
+          <p class="field-hint">Prepared cues release in order. Phrase matches are stored as mentions only; they do not select a blocker, inspect code, or confirm a diagnosis. Use the chat skill or a coach to evaluate shared reasoning.</p>
         </section>
 
         <section class="analysis-section" id="counterfactual" aria-labelledby="counterfactualHeading">

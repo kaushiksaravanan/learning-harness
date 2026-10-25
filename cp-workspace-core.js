@@ -5,13 +5,18 @@
   if (typeof module === "object" && module.exports) module.exports = api;
   if (root) root.CPWorkspaceCore = api;
 })(typeof globalThis === "undefined" ? this : globalThis, function buildCore() {
-  const VERSION = 3;
+  const VERSION = 4;
   const NODE_TYPES = new Set(["problem", "concept", "pattern", "mistake", "recovery", "check"]);
   const EDGE_TYPES = new Set(["requires", "supports", "leads to", "blocks", "is detected by", "recovers from", "implements", "shares a principle", "is a near-miss for"]);
   const VALIDATION_SOURCES = new Set(["Self-assessed", "Online judge accepted", "Counterexample tested", "Coach reviewed proof", "Official analysis checked"]);
   const REVIEW_TYPES = new Set(["basic", "reasoning", "discrimination", "transfer"]);
   const REASONING_LAYERS = new Set(["definition", "mechanics", "derivation", "recognition", "discrimination", "implementation", "transfer"]);
   const REASONING_RESULTS = new Set(["independent", "with-cue", "not-yet", "untested"]);
+  const HELP_BEFORE_APPROACH = new Set(["none", "general-question", "strategic-cue", "partial-solution", "unknown"]);
+  const INTERVENTION_EVALUATIONS = new Set(["pending", "met", "partial", "not-met", "unclear"]);
+  const DIAGNOSIS_STATES = new Set(["unreviewed", "mention-only", "suspected", "confirmed", "ruled-out", "self-corrected"]);
+  const DIAGNOSIS_SOURCES = new Set(["learner", "coach", "chat-model", "other"]);
+  const TRANSFER_DISTANCES = new Set(["practice", "reconstruction", "near", "far", "unknown"]);
   const BLOCKERS = new Set(["undetermined", "problem-model", "mechanics", "approach", "proof", "implementation", "complexity", "recurring-mistake", "prerequisite", "independent"]);
   const DIAGNOSIS_RULES = [
     {
@@ -39,7 +44,7 @@
       id: "precondition-unchecked",
       label: "An algorithm precondition was assumed instead of checked",
       recoveryLabel: "Check algorithm preconditions before choosing a pattern",
-      pattern: /\b(assum(?:e|ed|ing).{0,48}(?:monoton\w*|greedy)|without (?:proving|checking).{0,32}(?:monoton\w*|invariant|greedy|valid)|did not prove.{0,32}(?:monoton\w*|invariant)|not monotone|not monotonic|greedy (?:fails|is wrong))\b/i,
+      pattern: /\b(assum(?:e|ed|ing).{0,48}(?:monoton\w*|greedy)|without (?:proving|checking).{0,32}(?:monoton\w*|invariant|greedy|valid)|did not prove.{0,32}(?:monoton\w*|invariant))\b/i,
       recoveryPattern: /\b(?:now|this time|before coding).{0,48}(?:prove|check|verify|test).{0,36}(?:monoton\w*|invariant|precondition|greedy)\b/i
     },
     {
@@ -144,10 +149,40 @@
       return [{
         id: rule.id,
         label: rule.label,
-        confidence: "low",
+        state: "mention",
+        source: "text-rule",
         evidence: source.slice(start, end).trim()
       }];
     });
+  }
+
+  function normalizeAttempt(attempt = {}) {
+    const helpBeforeApproach = HELP_BEFORE_APPROACH.has(attempt.helpBeforeApproach) ? attempt.helpBeforeApproach : "unknown";
+    const diagnosisReview = attempt.diagnosisReview && typeof attempt.diagnosisReview === "object" ? attempt.diagnosisReview : {};
+    const status = DIAGNOSIS_STATES.has(diagnosisReview.status) ? diagnosisReview.status : "unreviewed";
+    return {
+      ...attempt,
+      helpBeforeApproach,
+      approachUnaided: helpBeforeApproach === "none" ? true : helpBeforeApproach === "unknown" ? null : false,
+      interventionEvaluation: INTERVENTION_EVALUATIONS.has(attempt.interventionEvaluation) ? attempt.interventionEvaluation : "pending",
+      interventionEvaluationSource: DIAGNOSIS_SOURCES.has(attempt.interventionEvaluationSource) ? attempt.interventionEvaluationSource : "other",
+      interventionEvidence: String(attempt.interventionEvidence || ""),
+      interventionNextAction: attempt.interventionNextAction || null,
+      diagnosisReview: {
+        status,
+        source: DIAGNOSIS_SOURCES.has(diagnosisReview.source) ? diagnosisReview.source : "other",
+        evidence: String(diagnosisReview.evidence || ""),
+        candidateIds: Array.isArray(diagnosisReview.candidateIds) ? diagnosisReview.candidateIds : [],
+        reviewedAt: diagnosisReview.reviewedAt || null
+      },
+      diagnosisCandidates: Array.isArray(attempt.diagnosisCandidates) ? attempt.diagnosisCandidates.map((candidate) => ({
+        ...candidate,
+        state: DIAGNOSIS_STATES.has(candidate.state) ? candidate.state : "mention",
+        source: candidate.source || "text-rule"
+      })) : [],
+      transferDistance: TRANSFER_DISTANCES.has(attempt.transferDistance) ? attempt.transferDistance : "unknown",
+      priorExposureAt: attempt.priorExposureAt || null
+    };
   }
 
   function normalizeProblem(problem = {}) {
@@ -157,15 +192,16 @@
       createdAt: problem.createdAt || new Date().toISOString(),
       updatedAt: problem.updatedAt || new Date().toISOString(),
       fields: { ...emptyFields(), ...(problem.fields || {}) },
-      attempts: Array.isArray(problem.attempts) ? problem.attempts : [],
+      attempts: Array.isArray(problem.attempts) ? problem.attempts.map(normalizeAttempt) : [],
       cards: Array.isArray(problem.cards) ? problem.cards.map((card) => normalizeCard(card, id)) : [],
-      hintEvents: Array.isArray(problem.hintEvents) ? problem.hintEvents : []
+      hintEvents: Array.isArray(problem.hintEvents) ? problem.hintEvents : [],
+      confidencePredictions: Array.isArray(problem.confidencePredictions) ? problem.confidencePredictions : []
     };
   }
 
   function createProblem(fields = {}, now = new Date()) {
     const iso = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
-    return normalizeProblem({ id: makeId("problem"), createdAt: iso, updatedAt: iso, fields, attempts: [], cards: [], hintEvents: [] });
+    return normalizeProblem({ id: makeId("problem"), createdAt: iso, updatedAt: iso, fields, attempts: [], cards: [], hintEvents: [], confidencePredictions: [] });
   }
 
   function createWorkspace(now = new Date()) {
@@ -242,10 +278,16 @@
     };
   }
 
+  function migrateV3(raw = {}) {
+    const migrated = migrateV2(raw);
+    return { ...migrated, migratedFrom: 3 };
+  }
+
   function normalizeWorkspace(raw) {
     if (!raw || typeof raw !== "object") return createWorkspace();
     if (raw.version === 1 && raw.fields) return migrateLegacy(raw);
     if (raw.version === 2) return migrateV2(raw);
+    if (raw.version === 3) return migrateV3(raw);
     if (raw.version !== VERSION) return createWorkspace();
     const problems = Array.isArray(raw.problems) ? raw.problems.map(normalizeProblem) : [];
     if (problems.length === 0) return createWorkspace();
@@ -301,52 +343,72 @@
       undetermined: {
         kind: "diagnose",
         title: "Continue or name a blocker",
-        prompt: "No targeted cue yet. Keep solving, or choose the closest blocker above to get one focused prompt."
+        prompt: "No targeted cue yet. Keep solving, or choose the closest blocker above to get one focused prompt.",
+        successCriterion: "The learner names a specific uncertainty or continues with a testable next step.",
+        supportLevel: "general-question"
       },
       "problem-model": {
         kind: "restatement",
         title: "Make the problem concrete",
-        prompt: "Restate the required output in your own words. Work one tiny input by hand and name what information the answer depends on."
+        prompt: "Restate the required output in your own words. Work one tiny input by hand and name what information the answer depends on.",
+        successCriterion: "The learner states the output precisely and traces a small example without changing the task.",
+        supportLevel: "general-question"
       },
       mechanics: {
         kind: "worked-example",
         title: "Build the mechanism on a small case",
-        prompt: "Use a tiny example and write each state change in a table. Then predict the next step before revealing or computing it."
+        prompt: "Use a tiny example and write each state change in a table. Then predict the next step before revealing or computing it.",
+        successCriterion: "The learner predicts and explains the next state transition on a new small case.",
+        supportLevel: "strategic-cue"
       },
       approach: {
         kind: "derivation",
         title: "Start from a baseline",
-        prompt: "Describe the simplest correct approach. Estimate its time cost from the constraints, then identify which repeated work or representation might reduce that cost."
+        prompt: "Describe the simplest correct approach. Estimate its time cost from the constraints, then identify which repeated work or representation might reduce that cost.",
+        successCriterion: "The learner gives a correct baseline, estimates its cost, and proposes a change tied to a specific bottleneck.",
+        supportLevel: "general-question"
       },
       proof: {
         kind: "proof",
         title: "Find the proof obligation",
-        prompt: "State what must remain true after each step. Try to construct the smallest counterexample to your claim, then repair the invariant."
+        prompt: "State what must remain true after each step. Try to construct the smallest counterexample to your claim, then repair the invariant.",
+        successCriterion: "The learner states a relevant invariant or precondition and explains why it is preserved or supplies a valid counterexample.",
+        supportLevel: "strategic-cue"
       },
       implementation: {
         kind: "trace",
         title: "Trace the first divergence",
-        prompt: "Choose the smallest failing input. Write expected and actual state after each operation; identify the first point where they differ before editing."
+        prompt: "Choose the smallest failing input. Write expected and actual state after each operation; identify the first point where they differ before editing.",
+        successCriterion: "The learner predicts state changes, locates the first divergence, and names a test before editing.",
+        supportLevel: "strategic-cue"
       },
       complexity: {
         kind: "complexity",
         title: "Estimate work before optimizing",
-        prompt: "Count the dominant operations at the maximum input size. Identify the bottleneck, then compare one alternative representation or data structure."
+        prompt: "Count the dominant operations at the maximum input size. Identify the bottleneck, then compare one alternative representation or data structure.",
+        successCriterion: "The learner estimates the dominant work at maximum constraints and links a proposed change to that bottleneck.",
+        supportLevel: "strategic-cue"
       },
       "recurring-mistake": {
         kind: "retrieval",
         title: "Retrieve an earlier recovery move",
-        prompt: "Before seeing any explanation, recall an earlier problem where this kind of failure appeared. What warning sign and check helped you recover?"
+        prompt: "Before seeing any explanation, recall an earlier problem where this kind of failure appeared. What warning sign and check helped you recover?",
+        successCriterion: "The learner recalls the previous warning sign and recovery check, then applies the check here.",
+        supportLevel: "strategic-cue"
       },
       prerequisite: {
         kind: "worked-example",
         title: "Repair one prerequisite",
-        prompt: "Use a short worked example to establish the missing definition or mechanism. Then solve the next tiny case with one step removed from the example."
+        prompt: "Use a short worked example to establish the missing definition or mechanism. Then solve the next tiny case with one step removed from the example.",
+        successCriterion: "After the example, the learner correctly solves a changed small case with one step of support removed.",
+        supportLevel: "partial-solution"
       },
       independent: {
         kind: "continue",
         title: "Continue independently",
-        prompt: "No intervention is needed now. Continue your attempt and record the next decision only if you become blocked."
+        prompt: "No intervention is needed now. Continue your attempt and record the next decision only if you become blocked.",
+        successCriterion: "The learner continues without a cue and records a new checkpoint only if progress stops.",
+        supportLevel: "none"
       }
     };
     const key = BLOCKERS.has(blocker) ? blocker : "undetermined";
@@ -354,7 +416,7 @@
     if (key === "recurring-mistake") {
       const prior = workspace.problems
         .flatMap((problem) => problem.attempts.map((attempt) => ({ problem, attempt })))
-        .filter(({ problem, attempt }) => problem.id !== problemId && (attempt.diagnosisCandidates || []).some((candidate) => !diagnosisId || candidate.id === diagnosisId))
+        .filter(({ problem, attempt }) => problem.id !== problemId && attempt.diagnosisReview?.status === "confirmed" && (attempt.diagnosisCandidates || []).some((candidate) => candidate.state === "confirmed" && (!diagnosisId || candidate.id === diagnosisId)))
         .sort((a, b) => String(b.attempt.createdAt || "").localeCompare(String(a.attempt.createdAt || "")))[0];
       if (prior) {
         const candidate = prior.attempt.diagnosisCandidates.find((item) => !diagnosisId || item.id === diagnosisId);
@@ -365,12 +427,27 @@
     return intervention;
   }
 
+  function recommendFollowup(evaluation, response) {
+    const result = INTERVENTION_EVALUATIONS.has(evaluation) ? evaluation : "pending";
+    const hasResponse = Boolean(String(response || "").trim());
+    const actions = {
+      met: { action: "fade", prompt: "The success criterion appears met from the recorded evaluation. Fade support: ask the learner to reconstruct the reasoning on a changed example without repeating this cue." },
+      partial: { action: "isolate-next-step", prompt: "Keep the demonstrated step and isolate the next missing step. Ask one targeted question about that step, then evaluate the new response against a narrower success criterion." },
+      "not-met": { action: "teach-prerequisite", prompt: "Switch to a small worked example for the missing prerequisite. Explain one step, then ask the learner to complete a changed example with that step removed." },
+      unclear: { action: "request-evidence", prompt: "The response does not yet show whether the criterion was met. Ask for a concrete example, derivation, trace, or test that distinguishes the likely gaps." },
+      pending: { action: "await-response", prompt: "Wait for a learner response and compare it with the stated success criterion before choosing the next intervention." }
+    };
+    if (!hasResponse && result !== "pending") return { ...actions.unclear, evaluation: "unclear" };
+    return { ...actions[result], evaluation: result };
+  }
+
   function classifyDiagnosisCandidates(diagnosisCandidates, priorSignals, identity) {
-    const recurringCandidate = diagnosisCandidates.find((candidate) => priorSignals.some((signal) =>
-      signal.candidate.id === candidate.id && problemIdentity(signal.problem.fields) !== identity
+    const reviewed = diagnosisCandidates.filter((candidate) => ["suspected", "confirmed"].includes(candidate.state));
+    const recurringCandidate = reviewed.find((candidate) => candidate.state === "confirmed" && priorSignals.some((signal) =>
+      signal.candidate.id === candidate.id && signal.candidate.state === "confirmed" && signal.attempt.diagnosisReview?.status === "confirmed" && problemIdentity(signal.problem.fields) !== identity
     ));
     if (recurringCandidate) return { blocker: "recurring-mistake", diagnosisId: recurringCandidate.id };
-    const firstCandidate = diagnosisCandidates[0];
+    const firstCandidate = reviewed[0];
     return {
       blocker: firstCandidate ? DIAGNOSIS_TO_BLOCKER[firstCandidate.id] || "undetermined" : "undetermined",
       diagnosisId: firstCandidate?.id || null
@@ -390,8 +467,8 @@
     return {
       blocker,
       diagnosisId,
-      source: blocker === "undetermined" ? "not-classified" : "text-rule-low-confidence",
-      confidence: blocker === "undetermined" ? "unknown" : "low",
+      source: blocker === "undetermined" ? diagnosisCandidates.length ? "text-mention-only" : "not-classified" : "reviewed-provisional",
+      confidence: blocker === "undetermined" ? "unknown" : "provisional",
       diagnosisCandidates,
       intervention
     };
@@ -418,8 +495,20 @@
     const newNotes = previousNotes && note.startsWith(previousNotes) ? note.slice(previousNotes.length).trim() : note;
     const nearMissResponse = String(attempt.nearMissResponse || "");
     const diagnosisText = [newNotes, nearMissResponse, ...exposedHints.map((hint) => hint.learnerResponse)].filter(Boolean).join("\n");
-    const diagnosisCandidates = diagnoseAttempt(diagnosisText).map((candidate) => ({ ...candidate, createdAt }));
-    const currentDiagnosisIds = new Set(diagnosisCandidates.map((candidate) => candidate.id));
+    let diagnosisReviewStatus = DIAGNOSIS_STATES.has(attempt.diagnosisReviewStatus) ? attempt.diagnosisReviewStatus : "unreviewed";
+    const diagnosisReviewSource = DIAGNOSIS_SOURCES.has(attempt.diagnosisReviewSource) ? attempt.diagnosisReviewSource : "other";
+    const diagnosisReviewId = String(attempt.diagnosisReviewId || "");
+    const diagnosisReviewEvidence = String(attempt.diagnosisReviewEvidence || "");
+    if (["suspected", "confirmed", "ruled-out", "self-corrected"].includes(diagnosisReviewStatus) && !diagnosisReviewId) diagnosisReviewStatus = "mention-only";
+    if (["suspected", "confirmed", "ruled-out", "self-corrected"].includes(diagnosisReviewStatus) && !diagnosisReviewEvidence.trim()) diagnosisReviewStatus = "mention-only";
+    if (diagnosisReviewStatus === "confirmed" && (!diagnosisReviewEvidence.trim() || !["coach", "chat-model"].includes(diagnosisReviewSource))) diagnosisReviewStatus = "suspected";
+    const diagnosisCandidates = diagnoseAttempt(diagnosisText).map((candidate) => ({
+      ...candidate,
+      state: candidate.id === diagnosisReviewId && diagnosisReviewStatus !== "unreviewed" ? diagnosisReviewStatus : "mention",
+      reviewSource: candidate.id === diagnosisReviewId ? diagnosisReviewSource : null,
+      createdAt
+    }));
+    const currentDiagnosisIds = new Set(diagnosisCandidates.filter((candidate) => ["suspected", "confirmed"].includes(candidate.state)).map((candidate) => candidate.id));
     const priorSignals = workspace.problems.flatMap((item) => item.attempts.flatMap((previous) =>
       (previous.diagnosisCandidates || []).map((candidate) => ({ candidate, attempt: previous, problem: item }))
     ));
@@ -428,14 +517,27 @@
     const blocker = requestedBlocker === "undetermined" ? inferredBlocker : requestedBlocker;
     const blockerSource = requestedBlocker !== "undetermined"
       ? "learner-selected"
-      : blocker !== "undetermined" ? "text-rule-low-confidence" : "not-classified";
-    const blockerConfidence = blockerSource === "learner-selected" ? "self-reported" : blockerSource === "text-rule-low-confidence" ? "low" : "unknown";
-    // Preserve the prompt the learner actually saw. The text-rule diagnosis is
-    // computed from the submitted notes and must not be presented as an earlier intervention.
+      : blocker !== "undetermined" ? "reviewed-provisional" : diagnosisCandidates.length ? "text-mention-only" : "not-classified";
+    const blockerConfidence = blockerSource === "learner-selected" ? "self-reported" : blockerSource === "reviewed-provisional" ? "provisional" : "unknown";
+    // Preserve the prompt the learner actually saw. Phrase mentions are
+    // computed from submitted notes and must not be presented as diagnoses.
     const promptBlocker = BLOCKERS.has(attempt.intervention?.blocker)
       ? attempt.intervention.blocker
       : blocker;
-    const intervention = recommendIntervention(workspace, promptBlocker, problemId, attempt.intervention?.diagnosisId);
+    const intervention = attempt.intervention && typeof attempt.intervention === "object"
+      ? { ...attempt.intervention }
+      : recommendIntervention(workspace, promptBlocker, problemId, attempt.intervention?.diagnosisId);
+    const interventionEvaluation = INTERVENTION_EVALUATIONS.has(attempt.interventionEvaluation)
+      ? attempt.interventionEvaluation
+      : "pending";
+    const interventionResponse = String(attempt.interventionResponse || "");
+    const interventionNextAction = recommendFollowup(interventionEvaluation, interventionResponse);
+    const helpBeforeApproach = HELP_BEFORE_APPROACH.has(attempt.helpBeforeApproach) ? attempt.helpBeforeApproach : "unknown";
+    const transferDistance = TRANSFER_DISTANCES.has(attempt.transferDistance) ? attempt.transferDistance : "unknown";
+    const priorAttempts = identity
+      ? workspace.problems.flatMap((item) => item.attempts.filter((previous) => (previous.problemKey || problemIdentity(item.fields)) === identity))
+      : [];
+    const priorExposureAt = String(attempt.priorExposureAt || priorAttempts.at(-1)?.createdAt || "") || null;
     const confidenceValue = attempt.confidencePercent === "" || attempt.confidencePercent === null || attempt.confidencePercent === undefined
       ? null
       : Number(attempt.confidencePercent);
@@ -445,7 +547,7 @@
       return [key, Number.isFinite(value) ? Math.max(0, value) : 0];
     }));
     const recoveryCandidates = DIAGNOSIS_RULES.flatMap((rule) => {
-      const prior = priorSignals.filter((signal) => signal.candidate.id === rule.id);
+      const prior = priorSignals.filter((signal) => signal.candidate.id === rule.id && signal.candidate.state === "confirmed" && signal.attempt.diagnosisReview?.status === "confirmed");
       const match = rule.recoveryPattern?.exec(diagnosisText);
       if (!prior.length || !match || currentDiagnosisIds.has(rule.id)) return [];
       const start = Math.max(0, match.index - 60);
@@ -476,7 +578,17 @@
       blockerSource,
       blockerConfidence,
       intervention,
-      interventionResponse: String(attempt.interventionResponse || ""),
+      interventionResponse,
+      interventionEvaluation,
+      interventionEvaluationSource: DIAGNOSIS_SOURCES.has(attempt.interventionEvaluationSource) ? attempt.interventionEvaluationSource : "other",
+      interventionEvidence: String(attempt.interventionEvidence || ""),
+      interventionNextAction,
+      diagnosisReview: {
+        status: diagnosisReviewStatus,
+        source: diagnosisReviewSource,
+        evidence: diagnosisReviewEvidence,
+        candidateIds: diagnosisReviewId ? [diagnosisReviewId] : []
+      },
       focusLayer: REASONING_LAYERS.has(attempt.focusLayer) ? attempt.focusLayer : null,
       focusResult: REASONING_RESULTS.has(attempt.focusResult) ? attempt.focusResult : "untested",
       confidenceClaim: String(attempt.confidenceClaim || ""),
@@ -496,7 +608,12 @@
       hintExposureSource: "timestamped-events",
       patternId: attempt.patternId || null,
       unseen: Boolean(attempt.unseen),
-      approachUnaided: exposedHints.length === 0,
+      helpBeforeApproach,
+      approachUnaided: helpBeforeApproach === "none" ? true : helpBeforeApproach === "unknown" ? null : false,
+      approachSupportSource: "explicit-learner-report",
+      transferDistance,
+      attemptsBefore: priorAttempts.length,
+      priorExposureAt,
       justified: Boolean(attempt.justified),
       proofSound: Boolean(attempt.proofSound),
       implementationCorrect: Boolean(attempt.implementationCorrect),
@@ -662,7 +779,7 @@
     for (const problem of workspace.problems) {
       for (const attempt of problem.attempts) {
         for (const candidate of attempt.diagnosisCandidates || []) {
-          if (!candidate?.id || !candidate.label) continue;
+          if (!candidate?.id || !candidate.label || !["suspected", "confirmed"].includes(candidate.state)) continue;
           let group = groups.get(candidate.id);
           if (!group) {
             group = { id: candidate.id, label: candidate.label, confidence: "low", evidence: [], problemIds: new Set(), problemKeys: new Set() };
@@ -675,7 +792,9 @@
             problemTitle: problem.fields.problemTitle || "Untitled problem",
             attemptId: attempt.id,
             createdAt: candidate.createdAt || attempt.createdAt,
-            excerpt: candidate.evidence || ""
+            excerpt: candidate.evidence || "",
+            state: candidate.state,
+            reviewSource: candidate.reviewSource || attempt.diagnosisReview?.source || "other"
           });
         }
       }
@@ -684,6 +803,45 @@
       .map((group) => ({ ...group, problemIds: [...group.problemIds], problemKeys: [...group.problemKeys] }))
       .filter((group) => group.problemKeys.length >= minProblems)
       .sort((a, b) => b.problemKeys.length - a.problemKeys.length || a.label.localeCompare(b.label));
+  }
+
+  function confirmDiagnosisGroup(workspace, diagnosisId, problemIds, evidence, now = new Date()) {
+    const ids = new Set(Array.isArray(problemIds) ? problemIds : []);
+    const evidenceByProblem = evidence && typeof evidence === "object" && !Array.isArray(evidence) ? evidence : {};
+    const fallbackEvidence = typeof evidence === "string" ? evidence.trim() : "";
+    if (!diagnosisId || !ids.size) throw new Error("Choose a diagnosis and its linked problem records");
+    if ([...ids].some((problemId) => !String(evidenceByProblem[problemId] || fallbackEvidence).trim())) throw new Error("Record the evidence used to confirm this diagnosis for each linked problem");
+    const reviewedAt = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
+    const updated = {
+      ...workspace,
+      problems: workspace.problems.map((problem) => ids.has(problem.id)
+        ? {
+          ...problem,
+          attempts: problem.attempts.map((attempt) => {
+            const hasCandidate = (attempt.diagnosisCandidates || []).some((candidate) => candidate.id === diagnosisId && ["suspected", "confirmed"].includes(candidate.state));
+            if (!hasCandidate) return attempt;
+            const existingIds = attempt.diagnosisReview?.candidateIds || [];
+            const candidateEvidence = String(evidenceByProblem[problem.id] || fallbackEvidence).trim();
+            return {
+              ...attempt,
+              diagnosisReview: {
+                ...(attempt.diagnosisReview || {}),
+                status: "confirmed",
+                source: "coach",
+                evidence: candidateEvidence,
+                candidateIds: [...new Set([...existingIds, diagnosisId])],
+                reviewedAt
+              },
+              diagnosisCandidates: attempt.diagnosisCandidates.map((candidate) => candidate.id === diagnosisId
+                ? { ...candidate, state: "confirmed", reviewSource: "coach", reviewedAt }
+                : candidate)
+            };
+          }),
+          updatedAt: reviewedAt
+        }
+        : problem)
+    };
+    return { workspace: updated, reviewedAt };
   }
 
   function getRecoveryCandidates(workspace) {
@@ -806,33 +964,91 @@
     }))).sort((a, b) => String(a.attempt.createdAt || "").localeCompare(String(b.attempt.createdAt || "")) || a.problemOrder - b.problemOrder || a.attemptOrder - b.attemptOrder);
     const seen = new Set();
     const attempts = [];
+    const allAttempts = [];
+    const practiceAttempts = [];
+    const reconstructionAttempts = [];
+    const seenReconstructions = new Set();
     let unseenClaims = 0;
     let repeatedProblemAttempts = 0;
     let unknownProblemIdentityClaims = 0;
     let legacyUnaidedReports = 0;
+    const lastExposureByIdentity = new Map();
+    const exposureCountByIdentity = new Map();
+    const cardIndex = workspace.problems.flatMap((problem) => problem.cards.map((card) => ({ ...card, ownerProblemId: problem.id })));
+    const assistanceCounts = { none: 0, "general-question": 0, "strategic-cue": 0, "partial-solution": 0, unknown: 0 };
+    const elapsedDays = (later, earlier) => {
+      const diff = new Date(later).getTime() - new Date(earlier).getTime();
+      return Number.isFinite(diff) && diff >= 0 ? Math.floor(diff / 86400000) : null;
+    };
     for (const record of records) {
       const { attempt, problem, key } = record;
       if (attempt.unseen) unseenClaims += 1;
-      if (!key) {
-        if (attempt.unseen) unknownProblemIdentityClaims += 1;
-        continue;
+      const historyKey = key || `record:${problem.id}`;
+      const attemptsBefore = exposureCountByIdentity.get(historyKey) || 0;
+      const priorExposureAt = attempt.priorExposureAt || lastExposureByIdentity.get(historyKey) || null;
+      const first = key ? !seen.has(key) : record.attemptOrder === 0;
+      if (key) {
+        seen.add(key);
+        if (!first) repeatedProblemAttempts += 1;
+      } else if (attempt.unseen) {
+        unknownProblemIdentityClaims += 1;
       }
-      const first = !seen.has(key);
-      seen.add(key);
-      if (!first) repeatedProblemAttempts += 1;
-      if (!first || !attempt.unseen || (patternId && attempt.patternId !== patternId)) continue;
-      attempts.push({ ...attempt, problemTitle: problem.fields.problemTitle || "Untitled problem", problemKey: key, firstAttemptForIdentity: true });
-      if (attempt.hintExposureSource !== "timestamped-events" && attempt.approachUnaided) legacyUnaidedReports += 1;
+      lastExposureByIdentity.set(historyKey, attempt.createdAt || lastExposureByIdentity.get(historyKey));
+      exposureCountByIdentity.set(historyKey, attemptsBefore + 1);
+      const matchedPattern = !patternId || attempt.patternId === patternId || cardIndex.some((card) => card.patternNodeId === patternId && card.id === attempt.patternId);
+      const linkedCard = cardIndex.find((card) => card.id === attempt.patternId || card.patternNodeId === attempt.patternId);
+      const matchingReviews = workspace.reviewEvents.filter((event) => {
+        const card = cardIndex.find((candidate) => candidate.id === event.cardId);
+        const samePattern = attempt.patternId
+          ? event.cardId === attempt.patternId || Boolean(card?.patternNodeId && card.patternNodeId === attempt.patternId)
+          : event.problemId === problem.id;
+        return samePattern && new Date(event.reviewedAt).getTime() <= new Date(attempt.createdAt).getTime();
+      }).sort((a, b) => String(b.reviewedAt).localeCompare(String(a.reviewedAt)));
+      const lastPatternReviewAt = matchingReviews[0]?.reviewedAt || null;
+      const enriched = {
+        ...attempt,
+        problemTitle: problem.fields.problemTitle || "Untitled problem",
+        problemKey: key || null,
+        historyKey,
+        attemptsBefore,
+        firstAttemptForIdentity: first,
+        priorExposureAt,
+        daysSinceExposure: priorExposureAt ? elapsedDays(attempt.createdAt, priorExposureAt) : null,
+        lastPatternReviewAt,
+        daysSinceReview: lastPatternReviewAt ? elapsedDays(attempt.createdAt, lastPatternReviewAt) : null,
+        reviewedCardId: linkedCard?.id || null
+      };
+      if (!patternId || matchedPattern) allAttempts.push(enriched);
+      if (attempt.transferDistance === "practice" && (!patternId || matchedPattern)) practiceAttempts.push(enriched);
+      if (attempt.transferDistance === "reconstruction" && attemptsBefore > 0 && !attempt.unseen && (!patternId || matchedPattern) && !seenReconstructions.has(historyKey)) {
+        reconstructionAttempts.push(enriched);
+        seenReconstructions.add(historyKey);
+      }
+      if (!key) continue;
+      if (!first || !attempt.unseen || !matchedPattern) continue;
+      attempts.push(enriched);
+      if (attempt.helpBeforeApproach) assistanceCounts[attempt.helpBeforeApproach] += 1;
+      if (attempt.hintExposureSource !== "timestamped-events" && attempt.approachUnaided === true) legacyUnaidedReports += 1;
     }
     const count = (predicate) => attempts.filter(predicate).length;
     return {
       eligible: attempts.length,
       uniqueFirstSeen: attempts.length,
+      allAttempts,
+      practiceAttempts,
+      reconstruction: reconstructionAttempts.length,
+      reconstructionAttempts,
+      nearTransfer: count((attempt) => attempt.transferDistance === "near"),
+      farTransfer: count((attempt) => attempt.transferDistance === "far"),
+      practice: practiceAttempts.length,
+      unclassifiedDistance: count((attempt) => attempt.transferDistance === "unknown"),
       unseenClaims,
       repeatedProblemAttempts,
       unknownProblemIdentityClaims,
       legacyUnaidedReports,
-      unpromptedRecognition: count((attempt) => attempt.hintExposureSource === "timestamped-events" && attempt.approachUnaided),
+      unpromptedRecognition: count((attempt) => attempt.helpBeforeApproach === "none"),
+      independentlyCorrected: count((attempt) => attempt.diagnosisReview?.status === "self-corrected"),
+      assistanceBeforeApproach: assistanceCounts,
       applicabilityJustified: count((attempt) => attempt.justified),
       proofSound: count((attempt) => attempt.proofSound),
       implementationCorrect: count((attempt) => attempt.implementationCorrect),
@@ -852,23 +1068,37 @@
     }))).filter(({ identity, attempt }) => identity && REASONING_LAYERS.has(attempt.focusLayer) && REASONING_RESULTS.has(attempt.focusResult) && attempt.focusResult !== "untested")
       .sort((a, b) => String(a.attempt.createdAt || "").localeCompare(String(b.attempt.createdAt || "")));
     return [...REASONING_LAYERS].map((layer) => {
-      const latestByProblem = new Map();
+      const byProblem = new Map();
       for (const record of attempts) {
         if (record.attempt.focusLayer !== layer) continue;
-        latestByProblem.set(record.identity, record);
+        const item = byProblem.get(record.identity) || { first: record, latest: record };
+        item.latest = record;
+        byProblem.set(record.identity, item);
       }
-      const evidence = [...latestByProblem.values()];
-      const independent = evidence.filter(({ attempt }) => attempt.focusResult === "independent").length;
-      const neededSupport = evidence.filter(({ attempt }) => attempt.focusResult === "with-cue" || attempt.focusResult === "not-yet").length;
+      const recordsByProblem = [...byProblem.values()];
+      const firstEvidence = recordsByProblem.map(({ first }) => first);
+      const latestEvidence = recordsByProblem.map(({ latest }) => latest);
+      const independent = latestEvidence.filter(({ attempt }) => attempt.focusResult === "independent").length;
+      const neededSupport = latestEvidence.filter(({ attempt }) => attempt.focusResult === "with-cue" || attempt.focusResult === "not-yet").length;
+      const firstIndependent = firstEvidence.filter(({ attempt }) => attempt.focusResult === "independent").length;
+      const firstNeededSupport = firstEvidence.filter(({ attempt }) => attempt.focusResult === "with-cue" || attempt.focusResult === "not-yet").length;
       return {
         layer,
-        problems: evidence.length,
+        problems: latestEvidence.length,
         independent,
-        withCue: evidence.filter(({ attempt }) => attempt.focusResult === "with-cue").length,
-        notYet: evidence.filter(({ attempt }) => attempt.focusResult === "not-yet").length,
-        gap: evidence.length >= 2 && neededSupport > independent,
-        confidence: evidence.length >= 4 && neededSupport >= independent * 2 ? "medium" : "low",
-        evidence: evidence.map(({ problem, attempt }) => ({
+        withCue: latestEvidence.filter(({ attempt }) => attempt.focusResult === "with-cue").length,
+        notYet: latestEvidence.filter(({ attempt }) => attempt.focusResult === "not-yet").length,
+        firstProblems: firstEvidence.length,
+        firstIndependent,
+        firstWithCue: firstEvidence.filter(({ attempt }) => attempt.focusResult === "with-cue").length,
+        firstNotYet: firstEvidence.filter(({ attempt }) => attempt.focusResult === "not-yet").length,
+        firstSupport: firstNeededSupport,
+        latestSupport: neededSupport,
+        firstEvidence: firstEvidence.map(({ problem, attempt }) => ({ problemId: problem.id, title: problem.fields.problemTitle || "Untitled problem", result: attempt.focusResult, createdAt: attempt.createdAt })),
+        latestEvidence: latestEvidence.map(({ problem, attempt }) => ({ problemId: problem.id, title: problem.fields.problemTitle || "Untitled problem", result: attempt.focusResult, createdAt: attempt.createdAt })),
+        gap: latestEvidence.length >= 2 && neededSupport > independent,
+        confidence: latestEvidence.length >= 4 && neededSupport >= independent * 2 ? "medium" : "low",
+        evidence: latestEvidence.map(({ problem, attempt }) => ({
           problemId: problem.id,
           title: problem.fields.problemTitle || "Untitled problem",
           result: attempt.focusResult,
@@ -896,7 +1126,7 @@
       };
       return {
         layer: gap.layer,
-        reason: `${gap.withCue + gap.notYet} of ${gap.problems} distinct problems in this layer needed support most recently.`,
+        reason: `First checkpoint: ${gap.firstSupport} of ${gap.firstProblems} identified problems needed support; latest checkpoint: ${gap.latestSupport} of ${gap.problems} still need support.`,
         recommendation: `Choose a new problem to ${names[gap.layer]}.`,
         evidence: gap.evidence,
         confidence: gap.confidence
@@ -904,20 +1134,87 @@
     }
     const observed = getReasoningLayerProgress(workspace).reduce((sum, item) => sum + item.problems, 0);
     return observed
-      ? { layer: null, reason: "No repeated support gap is visible in the latest identified-problem evidence.", recommendation: "Mix a new, less-obvious problem with a contrast case and log the reasoning layer.", confidence: "low", evidence: [] }
+      ? { layer: null, reason: "No repeated support gap is visible in the latest identified-problem evidence. First and latest checkpoints remain available for comparison.", recommendation: "Mix a new, less-obvious problem with a contrast case and log the reasoning layer.", confidence: "low", evidence: [] }
       : { layer: null, reason: "There is not enough layer-specific evidence yet.", recommendation: "Log which reasoning layer this attempt exercises before assigning a harder problem.", confidence: "low", evidence: [] };
   }
 
+  function recordConfidencePrediction(workspace, problemId, input = {}, now = new Date()) {
+    const problem = getProblem(workspace, problemId);
+    if (!problem) throw new Error("Unknown problem ID");
+    const claim = String(input.claim || "").trim();
+    if (input.confidencePercent === "" || input.confidencePercent === null || input.confidencePercent === undefined) throw new Error("Record a confidence percentage before saving a prediction");
+    const confidencePercent = Number(input.confidencePercent);
+    if (!claim) throw new Error("Record a claim before saving a confidence prediction");
+    if (!Number.isFinite(confidencePercent) || confidencePercent < 0 || confidencePercent > 100) throw new Error("Confidence must be between 0 and 100");
+    const predictedAt = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
+    const prediction = {
+      id: input.id || makeId("confidence"),
+      claim,
+      confidencePercent,
+      rationale: String(input.rationale || ""),
+      predictedAt,
+      attemptId: input.attemptId || null,
+      outcomes: []
+    };
+    return {
+      workspace: {
+        ...workspace,
+        problems: workspace.problems.map((item) => item.id === problemId
+          ? { ...item, confidencePredictions: [...(item.confidencePredictions || []), prediction], updatedAt: predictedAt }
+          : item)
+      },
+      prediction
+    };
+  }
+
+  function recordConfidenceOutcome(workspace, problemId, predictionId, input = {}, now = new Date()) {
+    const problem = getProblem(workspace, problemId);
+    if (!problem) throw new Error("Unknown problem ID");
+    const prediction = (problem.confidencePredictions || []).find((item) => item.id === predictionId);
+    if (!prediction) throw new Error("Choose a saved confidence prediction");
+    if (prediction.outcomes?.length) throw new Error("This prediction already has an outcome; save a new prediction before recording another");
+    const outcome = ["supported", "contradicted"].includes(input.outcome) ? input.outcome : null;
+    if (!outcome) throw new Error("Choose whether the claim was supported or contradicted");
+    const feedbackSource = VALIDATION_SOURCES.has(input.feedbackSource) ? input.feedbackSource : "Self-assessed";
+    if (feedbackSource !== "Self-assessed" && !String(input.evidence || "").trim()) throw new Error("Record the evidence or reference for this non-self feedback source");
+    const requestedAt = now instanceof Date ? now.getTime() : new Date(now).getTime();
+    const predictedAt = new Date(prediction.predictedAt).getTime();
+    const evaluatedAt = new Date(Math.max(requestedAt, predictedAt + 1)).toISOString();
+    const event = {
+      id: makeId("confidence-outcome"),
+      outcome,
+      feedbackSource,
+      evidence: String(input.evidence || ""),
+      evaluatedAt
+    };
+    return {
+      workspace: {
+        ...workspace,
+        problems: workspace.problems.map((item) => item.id === problemId
+          ? {
+            ...item,
+            confidencePredictions: item.confidencePredictions.map((saved) => saved.id === predictionId
+              ? { ...saved, outcomes: [...(saved.outcomes || []), event] }
+              : saved),
+            updatedAt: evaluatedAt
+          }
+          : item)
+      },
+      prediction: { ...prediction, outcomes: [...(prediction.outcomes || []), event] },
+      event
+    };
+  }
+
   function getConfidenceCalibration(workspace) {
-    const all = workspace.problems.flatMap((problem) => problem.attempts);
-    const reported = all.filter((attempt) => attempt.confidencePercent !== null && attempt.confidencePercent !== undefined && Number.isFinite(Number(attempt.confidencePercent)) && attempt.confidenceClaim);
-    const checked = reported.filter((attempt) =>
-      ["supported", "contradicted"].includes(attempt.confidenceOutcome) && attempt.validationSource && attempt.validationSource !== "Self-assessed"
-    );
+    const reported = workspace.problems.flatMap((problem) => (problem.confidencePredictions || []).map((prediction) => ({ ...prediction, problemId: problem.id })));
+    const checked = reported.flatMap((prediction) => (prediction.outcomes || [])
+      .filter((outcome) => new Date(outcome.evaluatedAt).getTime() > new Date(prediction.predictedAt).getTime())
+      .map((outcome) => ({ ...prediction, outcome }))
+    ).filter(({ outcome }) => ["supported", "contradicted"].includes(outcome.outcome) && outcome.feedbackSource && outcome.feedbackSource !== "Self-assessed");
     const brierScore = checked.length
-      ? checked.reduce((sum, attempt) => {
-        const predicted = Number(attempt.confidencePercent) / 100;
-        const observed = attempt.confidenceOutcome === "supported" ? 1 : 0;
+      ? checked.reduce((sum, item) => {
+        const predicted = Number(item.confidencePercent) / 100;
+        const observed = item.outcome.outcome === "supported" ? 1 : 0;
         return sum + (predicted - observed) ** 2;
       }, 0) / checked.length
       : null;
@@ -925,8 +1222,9 @@
       reported: reported.length,
       checked: checked.length,
       brierScore,
-      highConfidenceContradictions: checked.filter((attempt) => attempt.confidenceOutcome === "contradicted" && Number(attempt.confidencePercent) >= 80).length,
-      lowConfidenceSupport: checked.filter((attempt) => attempt.confidenceOutcome === "supported" && Number(attempt.confidencePercent) <= 50).length
+      highConfidenceContradictions: checked.filter((item) => item.outcome.outcome === "contradicted" && Number(item.confidencePercent) >= 80).length,
+      lowConfidenceSupport: checked.filter((item) => item.outcome.outcome === "supported" && Number(item.confidencePercent) <= 50).length,
+      predictions: reported
     };
   }
 
@@ -937,6 +1235,11 @@
     REVIEW_TYPES: [...REVIEW_TYPES],
     REASONING_LAYERS: [...REASONING_LAYERS],
     REASONING_RESULTS: [...REASONING_RESULTS],
+    HELP_BEFORE_APPROACH: [...HELP_BEFORE_APPROACH],
+    INTERVENTION_EVALUATIONS: [...INTERVENTION_EVALUATIONS],
+    DIAGNOSIS_STATES: [...DIAGNOSIS_STATES],
+    DIAGNOSIS_SOURCES: [...DIAGNOSIS_SOURCES],
+    TRANSFER_DISTANCES: [...TRANSFER_DISTANCES],
     BLOCKERS: [...BLOCKERS],
     VALIDATION_SOURCES: [...VALIDATION_SOURCES],
     emptyFields,
@@ -953,8 +1256,11 @@
     addProblem,
     saveProblem,
     recommendIntervention,
+    recommendFollowup,
     suggestInterventionFromNotes,
     recordAttempt,
+    recordConfidencePrediction,
+    recordConfidenceOutcome,
     addCard,
     updateCard,
     archiveCard,
@@ -971,6 +1277,7 @@
     problemIdentity,
     diagnoseAttempt,
     getRecurringDiagnoses,
+    confirmDiagnosisGroup,
     getRecoveryCandidates,
     getReasoningLayerProgress,
     getLearningGapCandidates,
