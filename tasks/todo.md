@@ -9,6 +9,18 @@
 
 Risks: generated branches can be plausible but false; keep them labeled and sourced. The page has no model backend; prompt generation is copy/paste. Local browser storage is not a backup, so export Markdown for durable records.
 
+## Learning mechanism update
+
+- [x] Add a CP discovery-training reference that guides baseline → bottleneck → representation → proof/trade-off → reconstruction.
+- [x] Adapt the teaching skill to choose a targeted intervention and switch between discovery, guided construction, and first-principles explanation.
+- [x] Revise the teaching foundations and review policy for prerequisite-targeted instruction, worked-example fading, hypothesis-led debugging, and reasoning-transfer reviews.
+- [x] Add attempt evidence for blockers, reasoning layers, confidence claims, debugging hypotheses, and four time phases.
+- [x] Add provisional layer-gap and next-practice-focus summaries, card review types, and a descriptive confidence comparison.
+- [x] Preserve the prompt actually shown separately from low-confidence diagnoses inferred after attempt notes are submitted.
+- [x] Document evidence limits and CP-only scope in the app and repo docs.
+
+Verification: no software tests or infrastructure checks run, per the requested scope. Risks: learner-entered labels and outcomes are not independently validated; phrase rules can miss or misclassify reasoning; no problem bank exists for automatic assignment.
+
 ## Reliability and adaptive-learning update
 
 - [x] Restrict OpenCode commits to the exact file path reported by an edit event; make message checkpoints empty commits.

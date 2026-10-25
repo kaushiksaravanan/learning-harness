@@ -265,6 +265,39 @@
         recoveries.textContent = `Possible recovery signals (coach review): ${attempt.recoveryCandidates.map((item) => item.recoveryLabel).join(" · ")}`;
         row.append(recoveries);
       }
+      if (!compact && (attempt.intervention || attempt.blocker && attempt.blocker !== "undetermined")) {
+        const intervention = document.createElement("p");
+        const blockerLabel = attempt.blockerSource === "learner-selected"
+          ? `Learner-reported blocker: ${attempt.blocker}`
+          : attempt.blockerSource === "text-rule-low-confidence"
+            ? `Possible blocker from note text (low confidence): ${attempt.blocker}`
+            : `Blocker: ${attempt.blocker || "not recorded"}`;
+        intervention.textContent = `${blockerLabel} · prompt shown: ${attempt.intervention?.title || "not recorded"}${attempt.interventionResponse ? ` · response: ${attempt.interventionResponse.slice(0, 180)}` : ""}`;
+        row.append(intervention);
+      }
+      if (!compact && attempt.focusLayer) {
+        const layer = document.createElement("p");
+        layer.textContent = `Layer evidence: ${attempt.focusLayer} · ${attempt.focusResult}`;
+        row.append(layer);
+      }
+      if (!compact && attempt.confidenceClaim) {
+        const confidence = document.createElement("p");
+        confidence.textContent = `Confidence: ${attempt.confidencePercent ?? "not rated"}% · ${attempt.confidenceClaim} · why: ${attempt.confidenceReason || "not recorded"} · outcome: ${attempt.confidenceOutcome}`;
+        row.append(confidence);
+      }
+      if (!compact && attempt.debugCycle?.hypothesis) {
+        const debugging = document.createElement("p");
+        debugging.textContent = `Debug cycle: ${attempt.debugCycle.hypothesis} · test: ${attempt.debugCycle.test || "not recorded"} · predicted: ${attempt.debugCycle.prediction || "not recorded"} · observed: ${attempt.debugCycle.observed || "not recorded"}${attempt.debugCycle.changedBeforeTest ? " · edited before testing" : ""}`;
+        row.append(debugging);
+      }
+      if (!compact && attempt.timeBreakdown) {
+        const times = Object.entries(attempt.timeBreakdown).filter(([, minutes]) => minutes > 0);
+        if (times.length) {
+          const timing = document.createElement("p");
+          timing.textContent = "Time · " + times.map(([phase, minutes]) => `${phase}: ${minutes}m`).join(" · ");
+          row.append(timing);
+        }
+      }
       container.append(row);
     }
   }
@@ -506,7 +539,7 @@
 
   function readPatternEntry(entry) {
     const value = (name) => entry.querySelector(`[data-card-field="${name}"]`).value;
-    return { name: value("name"), trigger: value("trigger"), recovery: value("recovery") };
+    return { name: value("name"), trigger: value("trigger"), recovery: value("recovery"), reviewType: value("reviewType") };
   }
 
   function updatePatternMeta(entry, card) {
@@ -517,7 +550,7 @@
     entry.querySelector("[data-review-mode]").textContent = card.archived ? "Archived" : queued ? "Queued" : "Not queued";
     entry.querySelector("[data-schedule-meta]").textContent = card.archived
       ? `Archived · ${count} recorded review${count === 1 ? "" : "s"}`
-      : `${schedule.lastReviewedAt ? `Next ${formatDate(schedule.nextReview)}` : queued ? `Due ${formatDate(schedule.nextReview)}` : "Not scheduled"} · ${count} recorded review${count === 1 ? "" : "s"} · EF ${Number(schedule.easeFactor).toFixed(2)}${sharedPattern ? ` · Shared pattern: ${sharedPattern.label}` : ""}`;
+      : `${card.reviewType || "reasoning"} · ${schedule.lastReviewedAt ? `Next ${formatDate(schedule.nextReview)}` : queued ? `Due ${formatDate(schedule.nextReview)}` : "Not scheduled"} · ${count} recorded review${count === 1 ? "" : "s"} · EF ${Number(schedule.easeFactor).toFixed(2)}${sharedPattern ? ` · Shared pattern: ${sharedPattern.label}` : ""}`;
   }
 
   function renderPatterns() {
@@ -543,6 +576,11 @@
         field.id = label.htmlFor;
         field.value = card[name] || "";
       }
+      const reviewTypeLabel = entry.querySelector('[data-label="reviewType"]');
+      const reviewTypeField = entry.querySelector('[data-card-field="reviewType"]');
+      reviewTypeLabel.htmlFor = `pattern-reviewType-${index}`;
+      reviewTypeField.id = reviewTypeLabel.htmlFor;
+      reviewTypeField.value = card.reviewType || "reasoning";
       const archive = entry.querySelector("[data-remove-card]");
       archive.setAttribute("aria-label", "Archive pattern card");
       archive.title = "Archive this card without deleting its review history";
@@ -584,6 +622,10 @@
         const updates = readPatternEntry(entry);
         if (updates.name.trim().toLocaleLowerCase() !== card.name.trim().toLocaleLowerCase()) updates.patternNodeId = null;
         workspace = Core.updateCard(workspace, card.id, updates);
+        scheduleSave();
+      });
+      reviewTypeField.addEventListener("change", () => {
+        workspace = Core.updateCard(workspace, card.id, readPatternEntry(entry));
         scheduleSave();
       });
       updatePatternMeta(entry, card);
@@ -675,6 +717,7 @@
     $("validationSource").value = "Self-assessed";
     $("validationEvidence").value = "";
     for (const id of ["attemptUnseen", "approachJustified", "proofSound", "implementationCorrect", "distinguishedNearMiss"]) $(id).checked = false;
+    resetReasoningCheckpoint();
     $("nextMove").value = "";
     renderPatterns();
     refreshGraphControls();
@@ -683,6 +726,7 @@
     renderAttempts();
     renderHintExposureStatus();
     renderLearnerPanel();
+    renderLearningProgress();
     refreshHeader();
   }
 
@@ -746,6 +790,80 @@
       : "No cue events since the previous attempt. Unaided recognition is derived from this event history.";
   }
 
+  function currentAttemptDiagnosisText(problem) {
+    const previousNotes = String(problem.attempts.at(-1)?.notes || "");
+    const currentNotes = $("attemptNotes").value;
+    const newNotes = previousNotes && currentNotes.startsWith(previousNotes) ? currentNotes.slice(previousNotes.length).trim() : currentNotes;
+    const assignedHints = new Set(problem.attempts.flatMap((attempt) => attempt.hintEventIds || []));
+    const pendingHintResponses = problem.hintEvents.filter((event) => !assignedHints.has(event.id)).map((event) => event.learnerResponse);
+    return [newNotes, $("nearMissResponse").value, ...pendingHintResponses].filter(Boolean).join("\n");
+  }
+
+  function renderAdaptiveIntervention() {
+    const blocker = $("attemptBlocker").value;
+    if (blocker !== "undetermined") {
+      renderIntervention(Core.recommendIntervention(workspace, blocker, activeProblemId), "Based on your selected blocker");
+      return;
+    }
+    const problem = activeProblem();
+    if (!problem) return;
+    const suggestion = Core.suggestInterventionFromNotes(workspace, currentAttemptDiagnosisText(problem), activeProblemId);
+    renderIntervention(suggestion.intervention, suggestion.source === "text-rule-low-confidence"
+      ? "Possible prompt · low-confidence text signal"
+      : "No text signal yet · keep solving");
+  }
+
+  function renderIntervention(intervention, evidenceLabel = "") {
+    const status = $("adaptiveIntervention");
+    status.replaceChildren();
+    const title = document.createElement("strong");
+    title.textContent = evidenceLabel ? intervention.title + " · " + evidenceLabel : intervention.title;
+    const prompt = document.createElement("p");
+    prompt.textContent = intervention.prompt;
+    status.append(title, prompt);
+  }
+
+  function renderLearningProgress() {
+    const progress = Core.getReasoningLayerProgress(workspace);
+    const gaps = Core.getLearningGapCandidates(workspace);
+    const next = Core.getNextPracticeFocus(workspace);
+    const layerNames = {
+      definition: "definition / problem model",
+      mechanics: "mechanics",
+      derivation: "derivation",
+      recognition: "recognition",
+      discrimination: "discrimination",
+      implementation: "implementation",
+      transfer: "transfer"
+    };
+    const evidenced = progress.filter((item) => item.problems);
+    const byLayer = evidenced.map((item) => layerNames[item.layer] + " " + item.independent + "/" + item.problems + " independent").join(" · ");
+    const gapSummary = gaps.length
+      ? "Possible gap: " + layerNames[gaps[0].layer] + " · low-confidence pattern from " + gaps[0].problems + " identified problems."
+      : next.reason;
+    $("learningProgress").textContent = gapSummary + " " + next.recommendation + (byLayer ? " Evidence: " + byLayer + "." : "");
+
+    const confidence = Core.getConfidenceCalibration(workspace);
+    $("confidenceSummary").textContent = confidence.checked
+      ? confidence.checked + " claim(s) marked with a non-self feedback source · Brier score " + confidence.brierScore.toFixed(3) + " (lower is better) · " + confidence.highConfidenceContradictions + " high-confidence contradiction(s) · " + confidence.lowConfidenceSupport + " low-confidence supported claim(s). The outcome and source are learner-entered, not independently verified."
+      : confidence.reported + " confidence claim(s) recorded; none have both a resolved outcome and a non-self feedback source, so calibration is not estimated.";
+  }
+
+  function resetReasoningCheckpoint() {
+    $("learningMode").value = "Discovery";
+    $("attemptBlocker").value = "undetermined";
+    $("interventionResponse").value = "";
+    $("focusLayer").value = "";
+    $("focusResult").value = "untested";
+    $("confidenceClaim").value = "";
+    $("confidencePercent").value = "";
+    $("confidenceReason").value = "";
+    $("confidenceOutcome").value = "unresolved";
+    for (const id of ["debugHypothesis", "debugTest", "debugPrediction", "debugObserved", "timeUnderstanding", "timeApproach", "timeImplementation", "timeVerification"]) $(id).value = "";
+    $("debugChangedBeforeTest").checked = false;
+    renderAdaptiveIntervention();
+  }
+
   async function recordAttempt() {
     await queuePersist();
     const problem = activeProblem();
@@ -759,10 +877,37 @@
       $("nearMissResponse").focus();
       return;
     }
+    const shownIntervention = Core.recommendIntervention(workspace, $("attemptBlocker").value, problem.id);
+    const matchingIntervention = $("attemptBlocker").value === "undetermined"
+      ? Core.suggestInterventionFromNotes(workspace, currentAttemptDiagnosisText(problem), problem.id).intervention
+      : shownIntervention;
     const result = Core.recordAttempt(workspace, problem.id, {
       mode: $("attemptMode").value,
+      learningMode: $("learningMode").value,
       result: $("attemptResult").value,
       timeMinutes: $("attemptMinutes").value,
+      timeBreakdown: {
+        understanding: $("timeUnderstanding").value,
+        approach: $("timeApproach").value,
+        implementation: $("timeImplementation").value,
+        verification: $("timeVerification").value
+      },
+      blocker: $("attemptBlocker").value,
+      intervention: matchingIntervention,
+      interventionResponse: $("interventionResponse").value,
+      focusLayer: $("focusLayer").value,
+      focusResult: $("focusResult").value,
+      confidenceClaim: $("confidenceClaim").value,
+      confidencePercent: $("confidencePercent").value,
+      confidenceReason: $("confidenceReason").value,
+      confidenceOutcome: $("confidenceOutcome").value,
+      debugCycle: {
+        hypothesis: $("debugHypothesis").value,
+        test: $("debugTest").value,
+        prediction: $("debugPrediction").value,
+        observed: $("debugObserved").value,
+        changedBeforeTest: $("debugChangedBeforeTest").checked
+      },
       patternId: $("attemptPattern").value,
       unseen: $("attemptUnseen").checked,
       justified: $("approachJustified").checked,
@@ -776,7 +921,10 @@
     });
     workspace = result.workspace;
     await persistWithoutFieldUpdate();
-    $("attemptLogStatus").textContent = `Attempt saved · ${formatDateTime(result.event.createdAt)}`;
+    const possibleBlockerNote = result.event.blockerSource === "text-rule-low-confidence"
+      ? ` · possible blocker: ${result.event.blocker} (low-confidence text match)`
+      : "";
+    $("attemptLogStatus").textContent = `Attempt saved · ${formatDateTime(result.event.createdAt)}${possibleBlockerNote}`;
     $("attemptMinutes").value = "";
     $("attemptPattern").value = "";
     $("nearMissResponse").value = "";
@@ -784,10 +932,13 @@
     $("validationEvidence").value = "";
     for (const id of ["attemptUnseen", "approachJustified", "proofSound", "implementationCorrect", "distinguishedNearMiss"]) $(id).checked = false;
     $("attemptResult").value = "Unsolved";
+    resetReasoningCheckpoint();
+    renderIntervention(result.event.intervention, "prompt shown before saving");
     renderAttemptHistoryAndSave();
     renderHintExposureStatus();
     renderLearnerPanel();
     renderGraph();
+    renderLearningProgress();
     refreshHeader();
   }
 
@@ -887,7 +1038,13 @@
     }
     const problemLabel = [card.problem.title, card.problem.problemId].filter(Boolean).join(" · ");
     $("reviewProblemName").textContent = `${problemLabel || `Problem ${shortId(card.problemId)}`} · ${reviewIndex + 1} of ${reviewQueue.length}`;
-    $("reviewFront").textContent = card.trigger || "Recall the cue or reasoning move from this problem.";
+    const reviewPrompts = {
+      basic: "Recall the definition or core fact.",
+      reasoning: "Reconstruct why the move works and its proof obligation.",
+      discrimination: "State when this move does not apply and give a counterexample.",
+      transfer: "Identify the cue in a different problem and explain why this move transfers."
+    };
+    $("reviewFront").textContent = `${reviewPrompts[card.reviewType] || reviewPrompts.reasoning}\n\n${card.trigger || "Recall the cue or reasoning move from this problem."}`;
     $("reviewRecall").value = "";
     $("reviewBack").textContent = "";
     $("reviewBack").hidden = true;
@@ -940,6 +1097,7 @@
     try {
       const result = Core.applyReview(workspace, {
         ...currentReview,
+        reviewType: Core.getAllCards(workspace).find((card) => card.id === currentReview.cardId)?.reviewType,
         quality: Number(quality),
         recallAttempt: $("reviewRecall").value,
         mode: $("reviewMode").value
@@ -983,6 +1141,7 @@
     await persistWithoutFieldUpdate();
     renderLearnerPanel();
     renderHintExposureStatus();
+    renderAdaptiveIntervention();
   }
 
   function makeMarkdown() {
@@ -991,6 +1150,11 @@
     const linkedNodes = workspace.graph.nodes.filter((node) => (node.problemIds || []).includes(problem.id));
     const linkedEdges = workspace.graph.edges.filter((edge) => (edge.problemIds || []).includes(problem.id));
     const recoveryRecords = problem.attempts.flatMap((attempt) => (attempt.recoveryCandidates || []).map((candidate) => ({ attempt, candidate })));
+    const acquisitionRecords = problem.attempts.map((attempt) => {
+      const timing = Object.entries(attempt.timeBreakdown || {}).filter(([, minutes]) => minutes > 0).map(([phase, minutes]) => phase + ": " + minutes + " min").join(" · ");
+      const debug = attempt.debugCycle || {};
+      return "- " + formatDateTime(attempt.createdAt) + " · mode: " + (attempt.learningMode || "Discovery") + " · blocker: " + (attempt.blocker || "undetermined") + " (" + (attempt.blockerSource || "unknown source") + ") · prompt shown: " + (attempt.intervention?.title || "none") + " · layer: " + (attempt.focusLayer || "not recorded") + " / " + (attempt.focusResult || "untested") + (attempt.interventionResponse ? " · response: " + attempt.interventionResponse : "") + (attempt.confidenceClaim ? " · confidence: " + (attempt.confidencePercent ?? "not rated") + "% on “" + attempt.confidenceClaim + "” · reason: " + (attempt.confidenceReason || "not recorded") + " · outcome: " + attempt.confidenceOutcome + " · source: " + (attempt.validationSource || "Self-assessed") : "") + (debug.hypothesis ? " · debug hypothesis: " + debug.hypothesis + " · test: " + (debug.test || "not recorded") + " · prediction: " + (debug.prediction || "not recorded") + " · observed: " + (debug.observed || "not recorded") + (debug.changedBeforeTest ? " · edited before test" : "") : "") + (timing ? " · time: " + timing : "");
+    });
     const lines = [
       `# ${fields.problemTitle || "Untitled problem"}`,
       [fields.platform, fields.problemId, fields.difficulty ? `rating ${fields.difficulty}` : "", fields.topicTags].filter(Boolean).join(" · "),
@@ -1025,18 +1189,21 @@
         `### ${card.name || "Untitled pattern"}`,
         `**Front / trigger:** ${card.trigger || "—"}`,
         `**Back / recovery:** ${card.recovery || "—"}`,
+        `**Review type:** ${card.reviewType || "reasoning"}`,
         `**Shared graph node:** ${card.patternNodeId || "not linked"}`,
         `**Review schedule:** repetitions ${card.schedule.repetitions}, interval ${card.schedule.intervalDays} days, ease ${Number(card.schedule.easeFactor).toFixed(2)}, next ${card.schedule.nextReview || "not scheduled"}`
       ]) : ["No cards yet."]),
       "## Attempts",
       ...(problem.attempts.length ? problem.attempts.map((attempt) => `- ${formatDateTime(attempt.createdAt)} · ${attempt.mode} · ${attempt.result} · ${attempt.timeMinutes || "?"} min · ${attempt.hintExposureCount ?? "legacy"} timestamped cue events (highest ${attempt.hintLevel ?? "unknown"}) · approach unaided ${attempt.hintExposureSource === "timestamped-events" ? attempt.approachUnaided : "unknown (legacy report)"} · applicability ${attempt.justified} · proof ${attempt.proofSound} · implementation ${attempt.implementationCorrect} · unseen ${attempt.unseen} · near-miss distinction ${attempt.distinguishedNearMiss} · feedback basis ${attempt.validationSource || "Self-assessed"}${attempt.diagnosisCandidates?.length ? ` · low-confidence diagnosis candidates: ${attempt.diagnosisCandidates.map((candidate) => candidate.label).join(", ")}` : ""}${attempt.validationEvidence ? ` · feedback evidence: ${attempt.validationEvidence}` : ""}${attempt.nearMissResponse ? ` · near-miss response: ${attempt.nearMissResponse}` : ""}`) : ["No attempts logged." ]),
+      "## Reasoning acquisition and confidence evidence",
+      ...(acquisitionRecords.length ? acquisitionRecords : ["No acquisition checkpoints recorded." ]),
       "## Hint events",
       ...(problem.hintEvents.length ? problem.hintEvents.map((event) => `- Cue ${event.hintLevel} on ${formatDateTime(event.createdAt)}: ${event.learnerResponse}`) : ["No hints shown." ]),
       "## Possible recovery signals",
       ...(recoveryRecords.length ? recoveryRecords.map(({ attempt, candidate }) => "- " + formatDateTime(attempt.createdAt) + " · " + candidate.recoveryLabel + " · low confidence; from earlier attempt(s): " + candidate.recoveredFromAttemptIds.join(", ") + " · evidence: " + candidate.evidence) : ["No explicit recovery signals recorded." ]),
       "## Review events",
       ...(workspace.reviewEvents.filter((event) => event.problemId === problem.id).length
-        ? workspace.reviewEvents.filter((event) => event.problemId === problem.id).map((event) => `- ${formatDateTime(event.reviewedAt)} · quality ${event.quality} · ${event.mode} · recall: ${event.recallAttempt}`)
+        ? workspace.reviewEvents.filter((event) => event.problemId === problem.id).map((event) => `- ${formatDateTime(event.reviewedAt)} · ${event.reviewType || "reasoning"} · quality ${event.quality} · ${event.mode} · recall: ${event.recallAttempt}`)
         : ["No review events." ]),
       "",
       `---\nExported from CP Reasoning Workspace on ${new Date().toLocaleDateString()}.`
@@ -1122,19 +1289,44 @@
       distinguishedNearMiss: attempt.distinguishedNearMiss,
       diagnosisCandidates: attempt.diagnosisCandidates,
       recoveryCandidates: attempt.recoveryCandidates,
-      validationSource: attempt.validationSource
+      learningMode: attempt.learningMode,
+      blocker: attempt.blocker,
+      intervention: attempt.intervention,
+      interventionResponse: attempt.interventionResponse,
+      focusLayer: attempt.focusLayer,
+      focusResult: attempt.focusResult,
+      timeBreakdown: attempt.timeBreakdown,
+      confidenceClaim: attempt.confidenceClaim,
+      confidencePercent: attempt.confidencePercent,
+      confidenceReason: attempt.confidenceReason,
+      confidenceOutcome: attempt.confidenceOutcome,
+      debugCycle: attempt.debugCycle,
+      validationSource: attempt.validationSource,
+      blockerSource: attempt.blockerSource,
+      blockerConfidence: attempt.blockerConfidence
     }))).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 20);
     const transfer = Core.transferMetrics(workspace);
     return `Analyze this competitive-programming problem for a coach-side reasoning dataset. The learner should get a cold attempt after the coach prepares the cues. Do not claim to know an expert's private thoughts or enumerate every possible failure. Separate observed learner behavior from derived, reconstructed, and hypothetical branches. Use sources and verify constraints and complexity. Include typed graph candidates with problem links, counterfactual/near-miss checks, a progressive hint ladder, attempt success dimensions, and only reusable pattern cards. Treat automatic mistake matches as low-confidence prompts for review, never as confirmed diagnoses. Treat unseen status and self-entered ratings as learner reports, not verified proof.\n\n## Problem\nTitle: ${f.problemTitle || "Unknown"}\nPlatform/ID: ${[f.platform, f.problemId].filter(Boolean).join(" / ") || "Unknown"}\nDifficulty: ${f.difficulty || "Unknown"}\nTags: ${f.topicTags || "Unknown"}\nURL: ${f.problemUrl || "Not supplied"}\n\n## Statement\n${f.problemText || "Not supplied"}\n\n## Attempt shared so far\n${f.attemptNotes || "No attempt notes supplied"}\n\n## Cross-problem memory\n${JSON.stringify({ recurringMistakes: recurring, lowConfidenceRecurringDiagnosisCandidates: suspectedRecurring, currentGraph: workspace.graph.nodes.map(({ id, type, label, problemIds }) => ({ id, type, label, problemIds })), recentAttempts, transferEvidence: { uniqueFirstSeenUnseenAttempts: transfer.eligible, unseenClaims: transfer.unseenClaims, repeatedProblemAttemptsExcluded: transfer.repeatedProblemAttempts, unknownProblemIdentityClaimsExcluded: transfer.unknownProblemIdentityClaims, eventDerivedIndependentApproach: transfer.unpromptedRecognition, applicabilityExplained: transfer.applicabilityJustified, proofSelfRatedSound: transfer.proofSound, implementationMarkedCorrect: transfer.implementationCorrect, accepted: transfer.solved, judgeAccepted: transfer.judgeAccepted, coachReviewedProof: transfer.coachReviewed } }, null, 2)}\n\n## Current model\nGoal: ${f.goal || "Not supplied"}\nConstraints: ${f.constraints || "Not supplied"}\nBaseline: ${f.baseline || "Not supplied"}\n\n## Counterfactual design\nCurrent near-miss: ${f.nearMissProblem || "Not prepared"}\nLearner question: ${f.nearMissQuestion || "Not prepared"}\nExpected distinction: ${f.nearMissReason || "Not prepared"}\n\nReturn structured Markdown for the coach. Mark unknowns instead of inventing them. Include a concise source list.`;
   }
 
+  function makeAdaptiveAnalysisPrompt() {
+    const learningState = {
+      layerProgress: Core.getReasoningLayerProgress(workspace),
+      lowConfidenceGapCandidates: Core.getLearningGapCandidates(workspace),
+      nextPracticeFocus: Core.getNextPracticeFocus(workspace),
+      confidenceCalibration: Core.getConfidenceCalibration(workspace)
+    };
+    return makeAnalysisPrompt() + "\n\n## Learning acquisition evidence\n" + JSON.stringify(learningState, null, 2)
+      + "\n\nChoose the smallest intervention for the observed gap. If a prerequisite is missing, demonstrate one small worked example and then fade support. If the learner is progressing independently, do not interrupt. After an explicitly requested full solution, ask for reconstruction and a new application. Use layer evidence and confidence only at the strength their source supports.";
+  }
+
   async function copyPrompt() {
     try {
-      await navigator.clipboard.writeText(makeAnalysisPrompt());
+      await navigator.clipboard.writeText(makeAdaptiveAnalysisPrompt());
       setStatus("Analysis prompt copied · saved on this device");
     } catch {
       const helper = document.createElement("textarea");
-      helper.value = makeAnalysisPrompt();
+      helper.value = makeAdaptiveAnalysisPrompt();
       helper.setAttribute("readonly", "");
       helper.style.position = "fixed";
       helper.style.opacity = "0";
@@ -1172,6 +1364,9 @@
     $("librarySearch").addEventListener("input", renderLibrary);
     $("recordAttemptButton").addEventListener("click", () => { void recordAttempt(); });
     $("attemptPattern").addEventListener("change", renderTransferSummary);
+    $("attemptBlocker").addEventListener("change", renderAdaptiveIntervention);
+    $("attemptNotes").addEventListener("input", renderAdaptiveIntervention);
+    $("nearMissResponse").addEventListener("input", renderAdaptiveIntervention);
     $("modeToggle").addEventListener("click", () => {
       const nextMode = viewMode === "learner" ? "coach" : "learner";
       void queuePersist().then(() => setViewMode(nextMode));

@@ -154,7 +154,7 @@
     .form-block:last-child { border-bottom: 0; }
     .label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
     label, .field-label { color: #394746; font-size: 12px; font-weight: 650; }
-    .field-help { color: #68746e; font-size: 11px; font-weight: 450; }
+    .field-help { color: #68746e; font-size: 12px; font-weight: 450; }
     .input, .textarea, .select {
       width: 100%;
       border: 1px solid var(--line-strong);
@@ -172,12 +172,12 @@
     .grid-two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(90px, 0.34fr); gap: 10px; }
     .grid-three { display: grid; grid-template-columns: 1fr 1fr 0.7fr; gap: 9px; }
     .field + .field { margin-top: 11px; }
-    .field-hint { margin: 6px 0 0; color: #68746e; font-size: 11px; }
-    .micro-label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; font-weight: 600; }
+    .field-hint { margin: 6px 0 0; color: #68746e; font-size: 12px; }
+    .micro-label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; font-weight: 600; }
     .source-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px; gap: 9px; }
     .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
     .section-heading h2, .section-heading h3 { margin: 0; font-size: 14px; font-weight: 680; letter-spacing: -0.01em; }
-    .section-heading p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .section-heading p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
     .tag {
       display: inline-flex;
       align-items: center;
@@ -187,7 +187,7 @@
       border-radius: 999px;
       background: #f2f8f5;
       color: #3e7666;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 650;
       white-space: nowrap;
     }
@@ -206,7 +206,7 @@
       padding: 5px 8px;
       border-radius: 6px;
       color: #63716c;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 600;
       text-decoration: none;
     }
@@ -227,7 +227,7 @@
       background: var(--surface-muted);
       color: #5a6863;
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 12px;
       overflow-wrap: anywhere;
     }
     .notice {
@@ -240,12 +240,12 @@
       border-radius: 7px;
       background: var(--warning-soft);
       color: #76541d;
-      font-size: 11px;
+      font-size: 12px;
     }
     .notice svg { width: 15px; height: 15px; flex: none; margin-top: 1px; }
     .cards-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
     .cards-header h3 { margin: 0; font-size: 13px; font-weight: 680; }
-    .cards-header p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .cards-header p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
     .pattern-list { display: grid; gap: 14px; }
     .pattern-entry { padding: 12px 0 14px; border-top: 1px solid var(--line); }
     .pattern-entry:first-child { border-top: 0; padding-top: 0; }
@@ -268,35 +268,39 @@
     .pattern-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
     .pattern-grid .textarea { min-height: 75px; }
     .review-line { display: grid; grid-template-columns: minmax(130px, 1fr) auto auto; align-items: end; gap: 9px; margin-top: 9px; }
-    .review-line .select { min-height: 34px; padding: 6px 8px; font-size: 11px; }
-    .schedule-meta { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 11px; }
-    .button-small { min-height: 33px; padding: 6px 9px; font-size: 11px; }
+    .review-line .select { min-height: 34px; padding: 6px 8px; font-size: 12px; }
+    .schedule-meta { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 12px; }
+    .button-small { min-height: 33px; padding: 6px 9px; font-size: 12px; }
     .review-box {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 9px;
       padding-top: 2px;
     }
-    .review-box label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 11px; }
-    .review-box .input { min-height: 34px; font-size: 11px; }
-    .footer-note { padding: 14px 18px 18px; color: var(--muted); font-size: 11px; }
+    .review-box label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+    .review-box .input { min-height: 34px; font-size: 12px; }
+    .footer-note { padding: 14px 18px 18px; color: var(--muted); font-size: 12px; }
     .attempt-controls { display: grid; grid-template-columns: 1fr 1fr 0.75fr; gap: 9px; margin-top: 12px; }
+    .attempt-details { margin-top: 12px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 7px; background: #fbfcfb; }
+    .attempt-details summary { cursor: pointer; color: var(--ink); font-size: 12px; font-weight: 650; }
+    .attempt-details[open] summary { margin-bottom: 10px; }
+    .time-breakdown { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
     .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 12px 0; }
     .check-label { display: flex; align-items: center; gap: 7px; color: #45524e; font-size: 12px; }
     .check-label input { accent-color: var(--accent); }
     .attempt-history { display: grid; gap: 8px; margin-top: 12px; }
     .attempt-row { padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; background: #fbfcfb; }
     .attempt-row strong { font-size: 12px; }
-    .attempt-row p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .attempt-row p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
     .graph-form { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 9px; margin-bottom: 14px; }
     .graph-form .field:last-of-type { grid-column: 1 / -1; }
     .graph-list { display: grid; gap: 6px; }
     .graph-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 8px 9px; border-bottom: 1px solid var(--line); }
     .graph-row:first-child { border-top: 1px solid var(--line); }
     .graph-row strong { overflow-wrap: anywhere; font-size: 12px; font-weight: 620; }
-    .graph-row small { color: var(--muted); font-size: 11px; }
+    .graph-row small { color: var(--muted); font-size: 12px; }
     .graph-edges { display: grid; gap: 5px; margin-top: 10px; }
-    .graph-edge-row { padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; color: #52615b; font-size: 11px; overflow-wrap: anywhere; }
+    .graph-edge-row { padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; color: #52615b; font-size: 12px; overflow-wrap: anywhere; }
     .graph-insight { margin-top: 12px; padding: 10px 11px; border: 1px solid #d4e4dd; border-radius: 7px; background: #f2f8f5; color: #31584e; font-size: 12px; }
     .graph-insight p { margin: 4px 0 0; }
     .diagnosis-title { display: block; margin-top: 12px; padding-top: 10px; border-top: 1px solid #d4e4dd; }
@@ -324,14 +328,14 @@
     .dialog-list { display: grid; gap: 0; }
     .library-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
     .library-row h3 { margin: 0; font-size: 13px; }
-    .library-row p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .library-row p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
     .library-row-actions { display: flex; align-items: center; gap: 6px; flex: none; }
     .empty-state { padding: 24px 10px; color: var(--muted); text-align: center; }
     .review-front { margin: 8px 0 14px; padding: 13px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-muted); color: #34423d; white-space: pre-wrap; }
     .review-back { margin: 12px 0; padding: 12px; border-left: 2px solid var(--accent); background: var(--accent-soft); color: #28493f; white-space: pre-wrap; }
     .review-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
     .review-progress { color: var(--muted); font-size: 12px; }
-    .graph-warning { color: var(--warning); font-size: 11px; }
+    .graph-warning { color: var(--warning); font-size: 12px; }
     .sr-only {
       position: absolute;
       width: 1px;
@@ -366,7 +370,7 @@
       .brand-mark { width: 27px; height: 27px; }
       .brand-name { font-size: 13px; }
       .header-actions { gap: 5px; }
-      .header-actions .button { min-height: 33px; padding: 6px 8px; font-size: 11px; }
+      .header-actions .button { min-height: 33px; padding: 6px 8px; font-size: 12px; }
       .header-actions .button svg { display: none; }
       .grid-three { grid-template-columns: 1fr 1fr; }
       .grid-three .field:last-child { grid-column: 1 / -1; }
@@ -377,6 +381,7 @@
       .review-box .field:last-child { grid-column: 1 / -1; }
       .attempt-controls { grid-template-columns: 1fr 1fr; }
       .attempt-controls .field:last-child { grid-column: 1 / -1; }
+      .time-breakdown { grid-template-columns: 1fr 1fr; }
       .check-grid { grid-template-columns: 1fr; }
       .graph-form { grid-template-columns: 1fr; }
       .graph-form .field:last-of-type { grid-column: auto; }
@@ -477,6 +482,45 @@
               <div class="field" style="grid-column: 1 / -1"><label class="micro-label" for="attemptPattern">Pattern tested, if known</label><select class="select" id="attemptPattern"><option value="">No pattern selected</option></select></div>
             </div>
             <p class="field-hint" id="hintExposureStatus" role="status" aria-live="polite">Unaided recognition is derived from timestamped cue events, not a manual rating.</p>
+            <details class="attempt-details">
+              <summary>Reasoning checkpoint and targeted support</summary>
+              <div class="field-grid">
+                <div class="field"><label class="micro-label" for="learningMode">Practice mode</label><select class="select" id="learningMode"><option>Discovery</option><option>Guided construction</option><option>First principles</option></select></div>
+                <div class="field"><label class="micro-label" for="attemptBlocker">What is blocking you?</label><select class="select" id="attemptBlocker"><option value="undetermined">Not sure yet</option><option value="problem-model">Understanding the problem</option><option value="mechanics">Working through a small example</option><option value="approach">Finding an approach</option><option value="proof">Justifying the approach</option><option value="implementation">Implementing or debugging</option><option value="complexity">Meeting time or memory limits</option><option value="recurring-mistake">A mistake I've made before</option><option value="prerequisite">A prerequisite concept</option><option value="independent">I'm progressing independently</option></select></div>
+              </div>
+              <div class="graph-insight" id="adaptiveIntervention" role="status" aria-live="polite">Choose the closest blocker to get one targeted prompt. Choose “progressing independently” to continue without interruption.</div>
+              <div class="field" style="margin-top: 10px"><label class="micro-label" for="interventionResponse">What did you retrieve or try after that prompt?</label><textarea class="textarea short" id="interventionResponse" placeholder="Record your reasoning step, or leave this blank if you continued independently."></textarea></div>
+              <div class="field-grid" style="margin-top: 10px">
+                <div class="field"><label class="micro-label" for="focusLayer">Reasoning layer exercised</label><select class="select" id="focusLayer"><option value="">Not recorded</option><option value="definition">Definition and problem model</option><option value="mechanics">Mechanics on an example</option><option value="derivation">Derivation</option><option value="recognition">Recognition</option><option value="discrimination">Discrimination</option><option value="implementation">Implementation</option><option value="transfer">Transfer</option></select></div>
+                <div class="field"><label class="micro-label" for="focusResult">How independently?</label><select class="select" id="focusResult"><option value="untested">Not assessed</option><option value="independent">Independently</option><option value="with-cue">With a cue</option><option value="not-yet">Not yet</option></select></div>
+              </div>
+            </details>
+            <details class="attempt-details">
+              <summary>Confidence and hypothesis-led debugging</summary>
+              <div class="field"><label class="micro-label" for="confidenceClaim">A claim you want to check</label><input class="input" id="confidenceClaim" placeholder="e.g. This predicate is monotone, so binary search is valid"></div>
+              <div class="field" style="margin-top: 10px"><label class="micro-label" for="confidenceReason">Why do you believe it?</label><textarea class="textarea short" id="confidenceReason" placeholder="State the evidence or reasoning behind your confidence"></textarea></div>
+              <div class="field-grid" style="margin-top: 10px">
+                <div class="field"><label class="micro-label" for="confidencePercent">Confidence (0–100%)</label><input class="input" id="confidencePercent" type="number" min="0" max="100" step="1" placeholder="—"></div>
+                <div class="field"><label class="micro-label" for="confidenceOutcome">After checking the claim</label><select class="select" id="confidenceOutcome"><option value="unresolved">Not checked yet</option><option value="supported">Supported by evidence</option><option value="contradicted">Contradicted by evidence</option></select></div>
+              </div>
+              <p class="field-hint">The descriptive comparison uses claims you mark as checked with a non-self feedback source. You enter both the outcome and source; the harness does not verify them. A judge verdict checks output, not a proof.</p>
+              <div class="field-grid" style="margin-top: 10px">
+                <div class="field"><label class="micro-label" for="debugHypothesis">Suspected cause</label><input class="input" id="debugHypothesis" placeholder="What do you think is wrong?"></div>
+                <div class="field"><label class="micro-label" for="debugTest">Smallest distinguishing test</label><input class="input" id="debugTest" placeholder="Which input separates likely causes?"></div>
+                <div class="field"><label class="micro-label" for="debugPrediction">Predicted output or state</label><input class="input" id="debugPrediction" placeholder="What should happen if your hypothesis is right?"></div>
+                <div class="field"><label class="micro-label" for="debugObserved">Observed output or state</label><input class="input" id="debugObserved" placeholder="What actually happened?"></div>
+              </div>
+              <label class="check-label" style="margin-top: 8px"><input type="checkbox" id="debugChangedBeforeTest"> I edited before testing a specific hypothesis</label>
+            </details>
+            <details class="attempt-details">
+              <summary>Time by phase</summary>
+              <div class="time-breakdown">
+                <div class="field"><label class="micro-label" for="timeUnderstanding">Understand (min)</label><input class="input" id="timeUnderstanding" type="number" min="0" step="1" placeholder="—"></div>
+                <div class="field"><label class="micro-label" for="timeApproach">Choose approach (min)</label><input class="input" id="timeApproach" type="number" min="0" step="1" placeholder="—"></div>
+                <div class="field"><label class="micro-label" for="timeImplementation">Implement (min)</label><input class="input" id="timeImplementation" type="number" min="0" step="1" placeholder="—"></div>
+                <div class="field"><label class="micro-label" for="timeVerification">Debug and verify (min)</label><input class="input" id="timeVerification" type="number" min="0" step="1" placeholder="—"></div>
+              </div>
+            </details>
             <div class="check-grid">
               <label class="check-label"><input type="checkbox" id="attemptUnseen"> I had not studied this problem or its solution</label>
               <label class="check-label"><input type="checkbox" id="approachJustified"> Explained why it applies</label>
@@ -548,6 +592,8 @@
             <div id="learnerAttemptSummary" class="attempt-history"></div>
           </div>
           <div class="graph-insight" id="transferSummary">Transfer counts require an unseen claim and a unique platform/problem ID or URL.</div>
+          <div class="graph-insight" id="learningProgress">Log layer-specific evidence to get a reason-based next practice focus.</div>
+          <div class="graph-insight" id="confidenceSummary">Confidence calibration appears after a claim is checked with a recorded feedback source.</div>
           <p class="field-hint">Learner mode hides the analysis during practice. This is a display gate, not password-protected storage.</p>
         </section>
 
@@ -623,7 +669,7 @@
           <div class="section-heading"><div><h3 id="hintPlanHeading">Prepared hint ladder</h3><p>One cue per line. Learner view reveals them in order and records the response between cues.</p></div></div>
           <label class="sr-only" for="hintLadder">Prepared hints</label>
           <textarea class="textarea tall" id="hintLadder" data-field="hintLadder" placeholder="1. Restate the relevant constraint as a question.&#10;2. Ask what the simple approach costs.&#10;3. Point to one structural cue, without naming the answer.&#10;4. Ask for the missing invariant or proof step.&#10;5. Offer one pseudocode step, not a full solution."></textarea>
-          <p class="field-hint">This page releases prepared cues. It does not infer the learner’s obstacle from free text.</p>
+          <p class="field-hint">Prepared cues release in order. Low-confidence text rules can suggest a prompt from the attempt notes; they do not inspect code or confirm a diagnosis.</p>
         </section>
 
         <section class="analysis-section" id="counterfactual" aria-labelledby="counterfactualHeading">
@@ -710,6 +756,7 @@
         <div><label class="micro-label" data-label="trigger">Front · trigger only</label><textarea class="textarea" data-card-field="trigger" placeholder="What cue should make the learner retrieve this move? Do not reveal the answer."></textarea></div>
         <div><label class="micro-label" data-label="recovery">Back · reasoning &amp; recovery</label><textarea class="textarea" data-card-field="recovery" placeholder="Why it applies, early warning, proof/check, and recovery."></textarea></div>
       </div>
+      <div class="field" style="margin-top: 9px"><label class="micro-label" data-label="reviewType">Review type</label><select class="select" data-card-field="reviewType"><option value="basic">Basic recall</option><option value="reasoning">Reasoning recall</option><option value="discrimination">Discrimination</option><option value="transfer">Transfer</option></select></div>
       <div class="review-line">
         <button class="button button-small" type="button" data-queue-card>Queue for review</button>
         <span class="tag tag-neutral" data-review-mode>Not queued</span>

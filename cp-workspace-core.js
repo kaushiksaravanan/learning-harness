@@ -9,6 +9,10 @@
   const NODE_TYPES = new Set(["problem", "concept", "pattern", "mistake", "recovery", "check"]);
   const EDGE_TYPES = new Set(["requires", "supports", "leads to", "blocks", "is detected by", "recovers from", "implements", "shares a principle", "is a near-miss for"]);
   const VALIDATION_SOURCES = new Set(["Self-assessed", "Online judge accepted", "Counterexample tested", "Coach reviewed proof", "Official analysis checked"]);
+  const REVIEW_TYPES = new Set(["basic", "reasoning", "discrimination", "transfer"]);
+  const REASONING_LAYERS = new Set(["definition", "mechanics", "derivation", "recognition", "discrimination", "implementation", "transfer"]);
+  const REASONING_RESULTS = new Set(["independent", "with-cue", "not-yet", "untested"]);
+  const BLOCKERS = new Set(["undetermined", "problem-model", "mechanics", "approach", "proof", "implementation", "complexity", "recurring-mistake", "prerequisite", "independent"]);
   const DIAGNOSIS_RULES = [
     {
       id: "complexity-not-checked",
@@ -46,6 +50,13 @@
       recoveryPattern: /\b(?:now|this time|before submitting).{0,48}(?:test|check|try).{0,36}(?:counterexample|edge|boundary|large|duplicate|empty|sample)\b/i
     }
   ];
+  const DIAGNOSIS_TO_BLOCKER = {
+    "precondition-unchecked": "approach",
+    "complexity-not-checked": "complexity",
+    "boundary-case-missed": "implementation",
+    "state-or-cache-mismatch": "implementation",
+    "test-coverage-too-narrow": "implementation"
+  };
   const emptyFields = () => ({
     problemTitle: "", problemUrl: "", problemId: "", platform: "", topicTags: "", difficulty: "",
     problemText: "", attemptNotes: "", goal: "", constraints: "", baseline: "", conceptGraph: "",
@@ -102,6 +113,7 @@
       name: String(card.name || ""),
       trigger: String(card.trigger || ""),
       recovery: String(card.recovery || ""),
+      reviewType: REVIEW_TYPES.has(card.reviewType) ? card.reviewType : "reasoning",
       patternNodeId: card.patternNodeId || null,
       readyForReview: Boolean(card.readyForReview || card.nextReview || oldSchedule.nextReview),
       archived: Boolean(card.archived),
@@ -284,6 +296,107 @@
     };
   }
 
+  function recommendIntervention(workspace, blocker, problemId = workspace.activeProblemId, diagnosisId = null) {
+    const interventions = {
+      undetermined: {
+        kind: "diagnose",
+        title: "Continue or name a blocker",
+        prompt: "No targeted cue yet. Keep solving, or choose the closest blocker above to get one focused prompt."
+      },
+      "problem-model": {
+        kind: "restatement",
+        title: "Make the problem concrete",
+        prompt: "Restate the required output in your own words. Work one tiny input by hand and name what information the answer depends on."
+      },
+      mechanics: {
+        kind: "worked-example",
+        title: "Build the mechanism on a small case",
+        prompt: "Use a tiny example and write each state change in a table. Then predict the next step before revealing or computing it."
+      },
+      approach: {
+        kind: "derivation",
+        title: "Start from a baseline",
+        prompt: "Describe the simplest correct approach. Estimate its time cost from the constraints, then identify which repeated work or representation might reduce that cost."
+      },
+      proof: {
+        kind: "proof",
+        title: "Find the proof obligation",
+        prompt: "State what must remain true after each step. Try to construct the smallest counterexample to your claim, then repair the invariant."
+      },
+      implementation: {
+        kind: "trace",
+        title: "Trace the first divergence",
+        prompt: "Choose the smallest failing input. Write expected and actual state after each operation; identify the first point where they differ before editing."
+      },
+      complexity: {
+        kind: "complexity",
+        title: "Estimate work before optimizing",
+        prompt: "Count the dominant operations at the maximum input size. Identify the bottleneck, then compare one alternative representation or data structure."
+      },
+      "recurring-mistake": {
+        kind: "retrieval",
+        title: "Retrieve an earlier recovery move",
+        prompt: "Before seeing any explanation, recall an earlier problem where this kind of failure appeared. What warning sign and check helped you recover?"
+      },
+      prerequisite: {
+        kind: "worked-example",
+        title: "Repair one prerequisite",
+        prompt: "Use a short worked example to establish the missing definition or mechanism. Then solve the next tiny case with one step removed from the example."
+      },
+      independent: {
+        kind: "continue",
+        title: "Continue independently",
+        prompt: "No intervention is needed now. Continue your attempt and record the next decision only if you become blocked."
+      }
+    };
+    const key = BLOCKERS.has(blocker) ? blocker : "undetermined";
+    const intervention = { blocker: key, ...interventions[key] };
+    if (key === "recurring-mistake") {
+      const prior = workspace.problems
+        .flatMap((problem) => problem.attempts.map((attempt) => ({ problem, attempt })))
+        .filter(({ problem, attempt }) => problem.id !== problemId && (attempt.diagnosisCandidates || []).some((candidate) => !diagnosisId || candidate.id === diagnosisId))
+        .sort((a, b) => String(b.attempt.createdAt || "").localeCompare(String(a.attempt.createdAt || "")))[0];
+      if (prior) {
+        const candidate = prior.attempt.diagnosisCandidates.find((item) => !diagnosisId || item.id === diagnosisId);
+        intervention.priorSignal = { problemId: prior.problem.id, attemptId: prior.attempt.id, label: candidate.label };
+        intervention.prompt = `Recall the earlier issue tagged “${candidate.label}” from ${prior.problem.fields.problemTitle || "another problem"}. What trigger and recovery check did you use? Try to state it before opening that attempt.`;
+      }
+    }
+    return intervention;
+  }
+
+  function classifyDiagnosisCandidates(diagnosisCandidates, priorSignals, identity) {
+    const recurringCandidate = diagnosisCandidates.find((candidate) => priorSignals.some((signal) =>
+      signal.candidate.id === candidate.id && problemIdentity(signal.problem.fields) !== identity
+    ));
+    if (recurringCandidate) return { blocker: "recurring-mistake", diagnosisId: recurringCandidate.id };
+    const firstCandidate = diagnosisCandidates[0];
+    return {
+      blocker: firstCandidate ? DIAGNOSIS_TO_BLOCKER[firstCandidate.id] || "undetermined" : "undetermined",
+      diagnosisId: firstCandidate?.id || null
+    };
+  }
+
+  function suggestInterventionFromNotes(workspace, text, problemId = workspace.activeProblemId) {
+    const problem = getProblem(workspace, problemId);
+    const diagnosisCandidates = diagnoseAttempt(text);
+    const identity = problem ? problemIdentity(problem.fields) : null;
+    const priorSignals = workspace.problems.flatMap((item) => item.attempts.flatMap((attempt) =>
+      (attempt.diagnosisCandidates || []).map((candidate) => ({ candidate, attempt, problem: item }))
+    ));
+    const { blocker, diagnosisId } = classifyDiagnosisCandidates(diagnosisCandidates, priorSignals, identity);
+    const intervention = recommendIntervention(workspace, blocker, problemId, diagnosisId);
+    intervention.diagnosisId = diagnosisId;
+    return {
+      blocker,
+      diagnosisId,
+      source: blocker === "undetermined" ? "not-classified" : "text-rule-low-confidence",
+      confidence: blocker === "undetermined" ? "unknown" : "low",
+      diagnosisCandidates,
+      intervention
+    };
+  }
+
   function recordAttempt(workspace, problemId, attempt, now = new Date()) {
     const problem = getProblem(workspace, problemId);
     if (!problem) throw new Error("Unknown problem ID");
@@ -310,6 +423,27 @@
     const priorSignals = workspace.problems.flatMap((item) => item.attempts.flatMap((previous) =>
       (previous.diagnosisCandidates || []).map((candidate) => ({ candidate, attempt: previous, problem: item }))
     ));
+    const requestedBlocker = BLOCKERS.has(attempt.blocker) ? attempt.blocker : "undetermined";
+    const inferredBlocker = classifyDiagnosisCandidates(diagnosisCandidates, priorSignals, identity).blocker;
+    const blocker = requestedBlocker === "undetermined" ? inferredBlocker : requestedBlocker;
+    const blockerSource = requestedBlocker !== "undetermined"
+      ? "learner-selected"
+      : blocker !== "undetermined" ? "text-rule-low-confidence" : "not-classified";
+    const blockerConfidence = blockerSource === "learner-selected" ? "self-reported" : blockerSource === "text-rule-low-confidence" ? "low" : "unknown";
+    // Preserve the prompt the learner actually saw. The text-rule diagnosis is
+    // computed from the submitted notes and must not be presented as an earlier intervention.
+    const promptBlocker = BLOCKERS.has(attempt.intervention?.blocker)
+      ? attempt.intervention.blocker
+      : blocker;
+    const intervention = recommendIntervention(workspace, promptBlocker, problemId, attempt.intervention?.diagnosisId);
+    const confidenceValue = attempt.confidencePercent === "" || attempt.confidencePercent === null || attempt.confidencePercent === undefined
+      ? null
+      : Number(attempt.confidencePercent);
+    const confidencePercent = Number.isFinite(confidenceValue) ? Math.max(0, Math.min(100, confidenceValue)) : null;
+    const timeBreakdown = Object.fromEntries(["understanding", "approach", "implementation", "verification"].map((key) => {
+      const value = Number(attempt.timeBreakdown?.[key]);
+      return [key, Number.isFinite(value) ? Math.max(0, value) : 0];
+    }));
     const recoveryCandidates = DIAGNOSIS_RULES.flatMap((rule) => {
       const prior = priorSignals.filter((signal) => signal.candidate.id === rule.id);
       const match = rule.recoveryPattern?.exec(diagnosisText);
@@ -334,8 +468,28 @@
       firstAttemptForIdentity,
       transferEligible: Boolean(attempt.unseen && firstAttemptForIdentity),
       mode: attempt.mode === "Timed" ? "Timed" : "Untimed",
+      learningMode: ["Discovery", "Guided construction", "First principles"].includes(attempt.learningMode) ? attempt.learningMode : "Discovery",
       result: attempt.result || "Unsolved",
       timeMinutes: Math.max(0, Number(attempt.timeMinutes || 0)),
+      timeBreakdown,
+      blocker,
+      blockerSource,
+      blockerConfidence,
+      intervention,
+      interventionResponse: String(attempt.interventionResponse || ""),
+      focusLayer: REASONING_LAYERS.has(attempt.focusLayer) ? attempt.focusLayer : null,
+      focusResult: REASONING_RESULTS.has(attempt.focusResult) ? attempt.focusResult : "untested",
+      confidenceClaim: String(attempt.confidenceClaim || ""),
+      confidencePercent,
+      confidenceReason: String(attempt.confidenceReason || ""),
+      confidenceOutcome: ["supported", "contradicted"].includes(attempt.confidenceOutcome) ? attempt.confidenceOutcome : "unresolved",
+      debugCycle: {
+        hypothesis: String(attempt.debugCycle?.hypothesis || ""),
+        test: String(attempt.debugCycle?.test || ""),
+        prediction: String(attempt.debugCycle?.prediction || ""),
+        observed: String(attempt.debugCycle?.observed || ""),
+        changedBeforeTest: Boolean(attempt.debugCycle?.changedBeforeTest)
+      },
       hintLevel,
       hintEventIds: exposedHints.map((hint) => hint.id),
       hintExposureCount: exposedHints.length,
@@ -600,6 +754,7 @@
       id: eventId,
       cardId: match.card.id,
       problemId: match.problem.id,
+      reviewType: match.card.reviewType,
       reviewedAt: schedule.lastReviewedAt,
       quality: schedule.lastQuality,
       recallAttempt,
@@ -689,10 +844,100 @@
     };
   }
 
+  function getReasoningLayerProgress(workspace) {
+    const attempts = workspace.problems.flatMap((problem) => problem.attempts.map((attempt) => ({
+      problem,
+      attempt,
+      identity: attempt.problemKey || problemIdentity(problem.fields)
+    }))).filter(({ identity, attempt }) => identity && REASONING_LAYERS.has(attempt.focusLayer) && REASONING_RESULTS.has(attempt.focusResult) && attempt.focusResult !== "untested")
+      .sort((a, b) => String(a.attempt.createdAt || "").localeCompare(String(b.attempt.createdAt || "")));
+    return [...REASONING_LAYERS].map((layer) => {
+      const latestByProblem = new Map();
+      for (const record of attempts) {
+        if (record.attempt.focusLayer !== layer) continue;
+        latestByProblem.set(record.identity, record);
+      }
+      const evidence = [...latestByProblem.values()];
+      const independent = evidence.filter(({ attempt }) => attempt.focusResult === "independent").length;
+      const neededSupport = evidence.filter(({ attempt }) => attempt.focusResult === "with-cue" || attempt.focusResult === "not-yet").length;
+      return {
+        layer,
+        problems: evidence.length,
+        independent,
+        withCue: evidence.filter(({ attempt }) => attempt.focusResult === "with-cue").length,
+        notYet: evidence.filter(({ attempt }) => attempt.focusResult === "not-yet").length,
+        gap: evidence.length >= 2 && neededSupport > independent,
+        confidence: evidence.length >= 4 && neededSupport >= independent * 2 ? "medium" : "low",
+        evidence: evidence.map(({ problem, attempt }) => ({
+          problemId: problem.id,
+          title: problem.fields.problemTitle || "Untitled problem",
+          result: attempt.focusResult,
+          createdAt: attempt.createdAt
+        }))
+      };
+    }).sort((a, b) => Number(b.gap) - Number(a.gap) || b.withCue + b.notYet - (a.withCue + a.notYet) || a.layer.localeCompare(b.layer));
+  }
+
+  function getLearningGapCandidates(workspace) {
+    return getReasoningLayerProgress(workspace).filter((item) => item.gap);
+  }
+
+  function getNextPracticeFocus(workspace) {
+    const gap = getLearningGapCandidates(workspace)[0];
+    if (gap) {
+      const names = {
+        definition: "define the task precisely and work a tiny example",
+        mechanics: "trace the mechanism on a small input",
+        derivation: "derive the approach from a baseline and the constraints",
+        recognition: "identify the pattern in a new statement before coding",
+        discrimination: "compare a problem where the familiar pattern does not apply",
+        implementation: "implement the same idea in a different problem",
+        transfer: "solve a genuinely new problem without a cue"
+      };
+      return {
+        layer: gap.layer,
+        reason: `${gap.withCue + gap.notYet} of ${gap.problems} distinct problems in this layer needed support most recently.`,
+        recommendation: `Choose a new problem to ${names[gap.layer]}.`,
+        evidence: gap.evidence,
+        confidence: gap.confidence
+      };
+    }
+    const observed = getReasoningLayerProgress(workspace).reduce((sum, item) => sum + item.problems, 0);
+    return observed
+      ? { layer: null, reason: "No repeated support gap is visible in the latest identified-problem evidence.", recommendation: "Mix a new, less-obvious problem with a contrast case and log the reasoning layer.", confidence: "low", evidence: [] }
+      : { layer: null, reason: "There is not enough layer-specific evidence yet.", recommendation: "Log which reasoning layer this attempt exercises before assigning a harder problem.", confidence: "low", evidence: [] };
+  }
+
+  function getConfidenceCalibration(workspace) {
+    const all = workspace.problems.flatMap((problem) => problem.attempts);
+    const reported = all.filter((attempt) => attempt.confidencePercent !== null && attempt.confidencePercent !== undefined && Number.isFinite(Number(attempt.confidencePercent)) && attempt.confidenceClaim);
+    const checked = reported.filter((attempt) =>
+      ["supported", "contradicted"].includes(attempt.confidenceOutcome) && attempt.validationSource && attempt.validationSource !== "Self-assessed"
+    );
+    const brierScore = checked.length
+      ? checked.reduce((sum, attempt) => {
+        const predicted = Number(attempt.confidencePercent) / 100;
+        const observed = attempt.confidenceOutcome === "supported" ? 1 : 0;
+        return sum + (predicted - observed) ** 2;
+      }, 0) / checked.length
+      : null;
+    return {
+      reported: reported.length,
+      checked: checked.length,
+      brierScore,
+      highConfidenceContradictions: checked.filter((attempt) => attempt.confidenceOutcome === "contradicted" && Number(attempt.confidencePercent) >= 80).length,
+      lowConfidenceSupport: checked.filter((attempt) => attempt.confidenceOutcome === "supported" && Number(attempt.confidencePercent) <= 50).length
+    };
+  }
+
   return {
     VERSION,
     NODE_TYPES: [...NODE_TYPES],
     EDGE_TYPES: [...EDGE_TYPES],
+    REVIEW_TYPES: [...REVIEW_TYPES],
+    REASONING_LAYERS: [...REASONING_LAYERS],
+    REASONING_RESULTS: [...REASONING_RESULTS],
+    BLOCKERS: [...BLOCKERS],
     VALIDATION_SOURCES: [...VALIDATION_SOURCES],
     emptyFields,
     makeId,
@@ -707,6 +952,8 @@
     setActiveProblem,
     addProblem,
     saveProblem,
+    recommendIntervention,
+    suggestInterventionFromNotes,
     recordAttempt,
     addCard,
     updateCard,
@@ -724,6 +971,10 @@
     problemIdentity,
     diagnoseAttempt,
     getRecurringDiagnoses,
-    getRecoveryCandidates
+    getRecoveryCandidates,
+    getReasoningLayerProgress,
+    getLearningGapCandidates,
+    getNextPracticeFocus,
+    getConfidenceCalibration
   };
 });
